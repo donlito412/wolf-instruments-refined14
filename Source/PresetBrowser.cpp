@@ -17,6 +17,8 @@ PresetBrowser::PresetBrowser(PresetManager &pm) : presetManager(pm) {
                                    juce::Colours::white.withAlpha(0.5f));
   searchBox.setColour(juce::TextEditor::backgroundColourId,
                       juce::Colour::fromString("FF222222"));
+  searchBox.setColour(juce::TextEditor::textColourId,
+                      juce::Colours::white); // Ensure text is visible
   searchBox.setColour(juce::TextEditor::outlineColourId,
                       juce::Colour::fromString("FF666670"));
   searchBox.onTextChange = [this] { filterPresets(); };
@@ -24,7 +26,9 @@ PresetBrowser::PresetBrowser(PresetManager &pm) : presetManager(pm) {
   // Category Filter
   addAndMakeVisible(categoryFilter);
   categoryFilter.addItemList(categories, 1);
-  categoryFilter.setSelectedId(1); // "All"
+  categoryFilter.setSelectedId(0,
+                               juce::dontSendNotification); // Default to None
+  categoryFilter.setTextWhenNothingSelected("Select Category...");
   categoryFilter.setColour(juce::ComboBox::backgroundColourId,
                            juce::Colour::fromString("FF222222"));
   categoryFilter.setColour(juce::ComboBox::textColourId, juce::Colours::white);
@@ -50,10 +54,12 @@ void PresetBrowser::resized() {
   auto area = getLocalBounds();
 
   // No header title, just search and sort
-  auto topArea = area.removeFromTop(70);
+  // No header title, just search and sort
+  auto topArea = area.removeFromTop(90);
 
-  searchBox.setBounds(topArea.removeFromTop(25).reduced(5, 5));
-  categoryFilter.setBounds(topArea.removeFromTop(25).reduced(5, 0));
+  searchBox.setBounds(
+      topArea.removeFromTop(40).reduced(5, 5)); // 30px effective height
+  categoryFilter.setBounds(topArea.removeFromTop(30).reduced(5, 0));
 
   area.reduce(5, 0);
   presetList.setBounds(area);
@@ -89,6 +95,22 @@ void PresetBrowser::listBoxItemClicked(int rowNumber,
 
   const auto presetName = displayedPresets[rowNumber];
   presetManager.loadPreset(presetName);
+
+  // User requested to hide the list after selection
+  // Resetting category to 0 will cause filterPresets() to clear the list (see
+  // logic in filterPresets) We use sendNotification to ensure the callback
+  // triggers and updates the list
+  searchBox.setText("", juce::dontSendNotification);
+
+  // Update the placeholder text to show the selected preset name
+  categoryFilter.setTextWhenNothingSelected(presetName);
+
+  // Update selection without callback first, to ensure text updates
+  categoryFilter.setSelectedId(0, juce::dontSendNotification);
+  categoryFilter.repaint();
+
+  // Manually hide the list
+  filterPresets();
 
   if (onPresetSelected)
     onPresetSelected();
@@ -137,6 +159,15 @@ void PresetBrowser::visibilityChanged() {
 
 void PresetBrowser::filterPresets() {
   displayedPresets.clear();
+
+  // If no category selected, don't show anything (unless searching? No, user
+  // requested explicit select)
+  if (categoryFilter.getSelectedId() == 0) {
+    presetList.updateContent();
+    repaint();
+    return;
+  }
+
   juce::String searchText = searchBox.getText().toLowerCase();
   juce::String selectedCat = categoryFilter.getText();
 

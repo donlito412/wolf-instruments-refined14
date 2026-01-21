@@ -54,18 +54,18 @@ int HowlingWolvesAudioProcessor::getNumPrograms() {
 
 int HowlingWolvesAudioProcessor::getCurrentProgram() { return 0; }
 
-void HowlingWolvesAudioProcessor::setCurrentProgram(int index) {}
+void HowlingWolvesAudioProcessor::setCurrentProgram(int /*index*/) {}
 
-const juce::String HowlingWolvesAudioProcessor::getProgramName(int index) {
+const juce::String HowlingWolvesAudioProcessor::getProgramName(int /*index*/) {
   return {};
 }
 
 void HowlingWolvesAudioProcessor::changeProgramName(
-    int index, const juce::String &newName) {}
+    int /*index*/, const juce::String & /*newName*/) {}
 
 //==============================================================================
 void HowlingWolvesAudioProcessor::prepareToPlay(double sampleRate,
-                                                int samplesPerBlock) {
+                                                int /*samplesPerBlock*/) {
   synthEngine.setCurrentPlaybackSampleRate(sampleRate);
 }
 
@@ -172,6 +172,30 @@ HowlingWolvesAudioProcessor::createParameterLayout() {
       juce::StringArray{"Filter Cutoff", "Volume", "Pan", "Pitch"}, 0));
   layout.add(std::make_unique<juce::AudioParameterFloat>(
       "lfoDepth", "LFO Depth", 0.0f, 1.0f, 0.5f));
+
+  // --- Effects Parameters ---
+
+  // Distortion
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "distDrive", "Distortion Drive", 0.0f, 1.0f, 0.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "distMix", "Distortion Mix", 0.0f, 1.0f, 0.0f));
+
+  // Delay
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "delayTime", "Delay Time", 0.0f, 2.0f, 0.5f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "delayFeedback", "Delay Feedback", 0.0f, 0.95f, 0.3f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "delayMix", "Delay Mix", 0.0f, 1.0f, 0.0f));
+
+  // Reverb
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "reverbSize", "Reverb Size", 0.0f, 1.0f, 0.5f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "reverbDamping", "Reverb Damping", 0.0f, 1.0f, 0.5f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      "reverbMix", "Reverb Mix", 0.0f, 1.0f, 0.0f));
 
   return layout;
 }

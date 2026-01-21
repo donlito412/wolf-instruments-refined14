@@ -81,7 +81,7 @@ void PlayTab::setupSlider(
 
 void PlayTab::paint(juce::Graphics &g) {
   // Main area background (semi-transparent panel over cave)
-  auto mainArea = getLocalBounds().removeFromRight(getWidth() - 160);
+  auto mainArea = getLocalBounds().removeFromRight(getWidth() - 200);
 
   // Draw semi-transparent panel for Sound Engine
   g.setColour(WolfColors::PANEL_DARK);
@@ -97,8 +97,8 @@ void PlayTab::paint(juce::Graphics &g) {
 void PlayTab::resized() {
   auto area = getLocalBounds();
 
-  // Sidebar (160px)
-  presetBrowser.setBounds(area.removeFromLeft(160));
+  // Sidebar (200px)
+  presetBrowser.setBounds(area.removeFromLeft(200));
 
   // Main Content
   area.reduce(25, 25); // Padding inside the panel

@@ -31,9 +31,12 @@ HowlingWolvesAudioProcessorEditor::HowlingWolvesAudioProcessorEditor(
   // Create and add tabs
   tabs.addTab("PLAY", WolfColors::PANEL_DARK, new PlayTab(audioProcessor),
               true); // Pass audioProcessor
-  tabs.addTab("MODULATE", WolfColors::PANEL_DARK, new ModulateTab(), true);
-  tabs.addTab("EFFECTS", WolfColors::PANEL_DARK, new EffectsTab(), true);
-  tabs.addTab("SETTINGS", WolfColors::PANEL_DARK, new SettingsTab(), true);
+  tabs.addTab("MODULATE", WolfColors::PANEL_DARK,
+              new ModulateTab(audioProcessor), true); // Pass audioProcessor
+  tabs.addTab("EFFECTS", WolfColors::PANEL_DARK, new EffectsTab(audioProcessor),
+              true);
+  tabs.addTab("SETTINGS", WolfColors::PANEL_DARK,
+              new SettingsTab(audioProcessor), true);
   tabs.setCurrentTabIndex(0);
   addAndMakeVisible(tabs);
 

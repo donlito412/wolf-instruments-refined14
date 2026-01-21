@@ -1,28 +1,26 @@
 #pragma once
 
+#include "ModernCyberLookAndFeel.h"
 #include <JuceHeader.h>
-#include <array>
-#include <vector>
 
 class VisualizerComponent : public juce::Component, public juce::Timer {
 public:
   VisualizerComponent();
   ~VisualizerComponent() override;
 
-  void pushBuffer(const juce::AudioBuffer<float> &buffer);
   void paint(juce::Graphics &g) override;
+  void resized() override;
   void timerCallback() override;
 
+  void pushBuffer(const juce::AudioBuffer<float> &buffer);
+
 private:
-  static const int fftOrder = 11;
-  static const int fftSize = 1 << fftOrder;
-  static const int scopeSize = 512;
-
+  juce::AudioBuffer<float> displayBuffer;
   juce::AbstractFifo fifo{4096};
-  std::array<float, 4096> fifoBuffer;
-  std::array<float, scopeSize> scopeData;
+  std::vector<float> fifoBuffer;
 
-  // Logic:
-  // Audio Thread pushes to FIFO.
-  // Timer pops from FIFO to update scopeData.
+  // Path for drawing
+  juce::Path waveformPath;
+
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VisualizerComponent)
 };

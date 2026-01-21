@@ -1,8 +1,9 @@
 #include "VisualizerComponent.h"
 
-VisualizerComponent::VisualizerComponent() {
-  startTimerHz(30); // 30 FPS Refresh
-  scopeData.fill(0.0f);
+VisualizerComponent::VisualizerComponent() : fifoBuffer(4096) {
+  displayBuffer.setSize(1, 512);
+  displayBuffer.clear();
+  startTimerHz(60); // 60 FPS
 }
 
 VisualizerComponent::~VisualizerComponent() { stopTimer(); }
@@ -16,70 +17,69 @@ void VisualizerComponent::pushBuffer(const juce::AudioBuffer<float> &buffer) {
     fifo.prepareToWrite(numSamples, start1, size1, start2, size2);
 
     if (size1 > 0)
-      std::copy(channelData, channelData + size1, fifoBuffer.data() + start1);
+      std::copy(channelData, channelData + size1, fifoBuffer.begin() + start1);
     if (size2 > 0)
       std::copy(channelData + size1, channelData + size1 + size2,
-                fifoBuffer.data() + start2);
+                fifoBuffer.begin() + start2);
 
     fifo.finishedWrite(size1 + size2);
   }
 }
 
 void VisualizerComponent::timerCallback() {
-  // Read from FIFO to fill scopeData
-  int numSamples = fifo.getNumReady();
-  if (numSamples > 0) {
-    std::array<float, 4096> tempBuffer;
-    int start1, size1, start2, size2;
-    fifo.prepareToRead(numSamples, start1, size1, start2, size2);
+  int numSamples = displayBuffer.getNumSamples();
+  int start1, size1, start2, size2;
+  fifo.prepareToRead(numSamples, start1, size1, start2, size2);
 
-    if (size1 > 0)
-      std::copy(fifoBuffer.data() + start1, fifoBuffer.data() + start1 + size1,
-                tempBuffer.data());
-    if (size2 > 0)
-      std::copy(fifoBuffer.data() + start2, fifoBuffer.data() + start2 + size2,
-                tempBuffer.data() + size1);
+  if (size1 > 0)
+    displayBuffer.copyFrom(0, 0, fifoBuffer.data() + start1, size1);
+  if (size2 > 0)
+    displayBuffer.copyFrom(0, size1, fifoBuffer.data() + start2, size2);
 
-    fifo.finishedRead(size1 + size2);
+  fifo.finishedRead(size1 + size2);
 
-    // Update scopeData (Simple rolling or trigger? Let's just grab the latest
-    // chunk) Actually, for a visualizer, we want to shift data or just replace
-    // it. Let's just copy exactly 'scopeSize' from the END of what we read, or
-    // shift.
-
-    for (int i = 0; i < size1 + size2; ++i) {
-      // Shift left
-      for (int j = 0; j < scopeSize - 1; ++j)
-        scopeData[j] = scopeData[j + 1];
-      scopeData[scopeSize - 1] = tempBuffer[i];
-    }
-    repaint();
-  }
+  repaint();
 }
 
 void VisualizerComponent::paint(juce::Graphics &g) {
-  auto area = getLocalBounds();
-  g.setColour(juce::Colour::fromString("FF111111")
-                  .withAlpha(0.5f)); // Semi-transparent bg
-  g.fillRoundedRectangle(area.toFloat(), 5.0f);
+  auto area = getLocalBounds().toFloat();
 
-  g.setColour(juce::Colour::fromString("FF666670"));
-  g.drawRoundedRectangle(area.toFloat(), 5.0f, 1.0f); // Border
+  // Background
+  g.setColour(WolfColors::PANEL_DARK);
+  g.fillRoundedRectangle(area, 4.0f);
+  g.setColour(WolfColors::BORDER_SUBTLE);
+  g.drawRoundedRectangle(area, 4.0f, 1.0f);
 
-  g.setColour(juce::Colour::fromString("FF88CCFF")); // Ice Blue Wave
+  // Grid lines
+  g.setColour(WolfColors::BORDER_PANEL);
+  g.drawHorizontalLine(getHeight() / 2, 0, getWidth());
 
-  juce::Path wavePath;
-  float w = (float)getWidth();
-  float h = (float)getHeight();
-  float centerY = h * 0.5f;
-  float scaleY = h * 0.45f; // Almost full height
+  // Waveform
+  waveformPath.clear();
+  auto *data = displayBuffer.getReadPointer(0);
+  int numSamples = displayBuffer.getNumSamples();
 
-  wavePath.startNewSubPath(0, centerY + scopeData[0] * scaleY);
-  float xInc = w / (float)scopeSize;
+  float xRatio = area.getWidth() / (float)numSamples;
+  float yMid = area.getCentreY();
+  float yScale = area.getHeight() * 0.4f; // Scale factor
 
-  for (int i = 1; i < scopeSize; ++i) {
-    wavePath.lineTo((float)i * xInc, centerY + scopeData[i] * scaleY);
+  waveformPath.startNewSubPath(area.getX(), yMid);
+
+  for (int i = 0; i < numSamples; ++i) {
+    // Simple decimation or just drawing all points
+    // For 512 samples/pixels, we can just draw lines
+    float x = area.getX() + i * xRatio;
+    float y = yMid - (data[i] * yScale);
+    waveformPath.lineTo(x, y);
   }
 
-  g.strokePath(wavePath, juce::PathStrokeType(1.5f));
+  // Draw Glow
+  g.setColour(WolfColors::ACCENT_GLOW);
+  g.strokePath(waveformPath, juce::PathStrokeType(4.0f));
+
+  // Draw Core line
+  g.setColour(WolfColors::WAVE_CYAN);
+  g.strokePath(waveformPath, juce::PathStrokeType(1.5f));
 }
+
+void VisualizerComponent::resized() {}

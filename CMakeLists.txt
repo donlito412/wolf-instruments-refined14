@@ -47,6 +47,12 @@ target_sources(HowlingWolves
         Source/PresetBrowser.h
         Source/PlayTab.cpp
         Source/PlayTab.h
+        Source/ModulateTab.cpp
+        Source/ModulateTab.h
+        Source/EffectsTab.cpp
+        Source/EffectsTab.h
+        Source/SettingsTab.cpp
+        Source/SettingsTab.h
         Source/VisualizerComponent.cpp
         Source/VisualizerComponent.h
         Source/CustomKnobLookAndFeel.cpp
