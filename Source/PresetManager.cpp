@@ -14,6 +14,9 @@ const juce::File PresetManager::factoryDirectory{
 // Changed extension to .wav per user request
 const juce::String PresetManager::presetExtension{".wav"};
 
+const juce::File PresetManager::projectDirectory{
+    "/Users/jonfreeze/Wolf Instruments/Music/Wolf Instruments/Presets"};
+
 PresetManager::PresetManager(juce::AudioProcessorValueTreeState &apvts,
                              SampleManager &sm)
     : valueTreeState(apvts), sampleManager(sm) {
@@ -113,6 +116,10 @@ juce::File PresetManager::getPresetFile(const juce::String &presetName) const {
   if (f.existsAsFile())
     return f;
 
+  f = findInRoot(projectDirectory);
+  if (f.existsAsFile())
+    return f;
+
   return juce::File();
 }
 
@@ -177,6 +184,7 @@ juce::Array<juce::File> PresetManager::getAllPresets() const {
 
   scanRoot(defaultDirectory);
   scanRoot(factoryDirectory);
+  scanRoot(projectDirectory);
 
   return presets;
 }
