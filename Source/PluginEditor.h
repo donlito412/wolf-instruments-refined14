@@ -1,109 +1,90 @@
 #pragma once
 
-#include "LEDToggleButton.h"
+#include "ModernCyberLookAndFeel.h"
+#include "PlayTab.h" // Added
 #include "PluginProcessor.h"
-#include "PremiumKnobLookAndFeel.h"
-#include "PresetBrowser.h"
-#include "VerticalFaderLookAndFeel.h"
-#include "VisualizerComponent.h"
-#include <JuceHeader.h>
+#include <JuceHeader.h> // PresetBrowser included via PlayTab.h now, or separate if needed (it is in PlayTab.h)
 
 //==============================================================================
+// Placeholder tab components (will be implemented in later phases)
 //==============================================================================
-class DeepCaveLookAndFeel : public juce::LookAndFeel_V4 {
+// PlayTab class definition removed (now in PlayTab.h)
+
+class ModulateTab : public juce::Component {
 public:
-  DeepCaveLookAndFeel();
-  void drawWhiteNote(int note, juce::Graphics &g, juce::Rectangle<float> area,
-                     bool isDown, bool isOver, juce::Colour lineColour,
-                     juce::Colour textColour);
-  void drawBlackNote(int note, juce::Graphics &g, juce::Rectangle<float> area,
-                     bool isDown, bool isOver, juce::Colour noteFillColour);
-  void drawRotarySlider(juce::Graphics &g, int x, int y, int width, int height,
-                        float sliderPos, float rotaryStartAngle,
-                        float rotaryEndAngle, juce::Slider &slider) override;
-  void drawButtonBackground(juce::Graphics &g, juce::Button &button,
-                            const juce::Colour &backgroundColour,
-                            bool shouldDrawButtonAsHighlighted,
-                            bool shouldDrawButtonAsDown) override;
-  void drawLinearSlider(juce::Graphics &g, int x, int y, int width, int height,
-                        float sliderPos, float minSliderPos, float maxSliderPos,
-                        const juce::Slider::SliderStyle,
-                        juce::Slider &slider) override;
-  // Non-override helper for panels
-  void drawPanel(juce::Graphics &g, juce::Rectangle<float> area,
-                 const juce::String &title);
+  ModulateTab() {
+    // Placeholder - will implement in Phase 3
+  }
 
-  void drawLogo(juce::Graphics &g, juce::Rectangle<float> area);
+  void paint(juce::Graphics &g) override {
+    g.fillAll(WolfColors::PANEL_DARK);
+    g.setColour(WolfColors::TEXT_PRIMARY);
+    g.setFont(20.0f);
+    g.drawText("MODULATE TAB - Coming in Phase 3", getLocalBounds(),
+               juce::Justification::centred);
+  }
+};
+
+class EffectsTab : public juce::Component {
+public:
+  EffectsTab() {
+    // Placeholder - will implement in Phase 4
+  }
+
+  void paint(juce::Graphics &g) override {
+    g.fillAll(WolfColors::PANEL_DARK);
+    g.setColour(WolfColors::TEXT_PRIMARY);
+    g.setFont(20.0f);
+    g.drawText("EFFECTS TAB - Coming in Phase 4", getLocalBounds(),
+               juce::Justification::centred);
+  }
+};
+
+class SettingsTab : public juce::Component {
+public:
+  SettingsTab() {
+    // Placeholder - will implement in Phase 5
+  }
+
+  void paint(juce::Graphics &g) override {
+    g.fillAll(WolfColors::PANEL_DARK);
+    g.setColour(WolfColors::TEXT_PRIMARY);
+    g.setFont(20.0f);
+    g.drawText("SETTINGS TAB - Coming in Phase 5", getLocalBounds(),
+               juce::Justification::centred);
+  }
 };
 
 //==============================================================================
-/**
- */
 class HowlingWolvesAudioProcessorEditor : public juce::AudioProcessorEditor {
 public:
   HowlingWolvesAudioProcessorEditor(HowlingWolvesAudioProcessor &);
   ~HowlingWolvesAudioProcessorEditor() override;
 
-  //==============================================================================
   void paint(juce::Graphics &) override;
   void resized() override;
 
 private:
   HowlingWolvesAudioProcessor &audioProcessor;
 
-  // Attachments
-  using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+  // Modern UI components
+  ModernCyberLookAndFeel modernLookAndFeel;
+  juce::TabbedComponent tabs;
+  juce::ComponentBoundsConstrainer constrainer;
 
-  // UI Components
-  juce::Slider attackSlider;
-  juce::Label attackLabel;
-  std::unique_ptr<SliderAttachment> attackAttachment;
-
-  juce::Slider decaySlider;
-  juce::Label decayLabel;
-  std::unique_ptr<SliderAttachment> decayAttachment;
-
-  juce::Slider sustainSlider;
-  juce::Label sustainLabel;
-  std::unique_ptr<SliderAttachment> sustainAttachment;
-
-  juce::Slider releaseSlider;
-  juce::Label releaseLabel;
-  std::unique_ptr<SliderAttachment> releaseAttachment;
-
-  juce::Slider gainSlider;
-  juce::Label gainLabel;
-  std::unique_ptr<SliderAttachment> gainAttachment;
-
-  // Top Bar Buttons
-  juce::TextButton browseButton{"BROWSE"};
-  juce::TextButton saveButton{"SAVE"};
-  juce::TextButton settingsButton{"SETTINGS"};
-
+  // Keyboard (always visible at bottom)
   juce::MidiKeyboardComponent keyboardComponent;
-  DeepCaveLookAndFeel deepCaveLookAndFeel;
+
+  // Cave background
   juce::Image backgroundImage;
 
-  // Overlay
-  // Overlay
-  VisualizerComponent visualizer;
+  // Top bar buttons
+  juce::TextButton browseButton{"BROWSE"};
+  juce::TextButton saveButton{"SAVE"};
+  juce::TextButton settingsButton{"?"};
+
+  // Preset browser overlay
   PresetBrowser presetBrowser;
-
-  // Filter & LFO Section
-  LEDToggleButton filterLPButton, filterHPButton, filterBPButton,
-      filterNotchButton;
-  juce::Slider filterCutoffSlider, filterResSlider;
-  juce::Label filterCutoffLabel, filterResLabel;
-  std::unique_ptr<SliderAttachment> filterCutoffAttachment, filterResAttachment;
-
-  LEDToggleButton lfoSineButton, lfoSquareButton, lfoTriangleButton;
-  juce::Slider lfoRateSlider, lfoDepthSlider;
-  juce::Label lfoRateLabel, lfoDepthLabel;
-  juce::ComboBox lfoTargetCombo;
-  std::unique_ptr<SliderAttachment> lfoRateAttachment, lfoDepthAttachment;
-
-  PremiumKnobLookAndFeel premiumKnobLookAndFeel;
-  VerticalFaderLookAndFeel verticalFaderLookAndFeel;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(
       HowlingWolvesAudioProcessorEditor)

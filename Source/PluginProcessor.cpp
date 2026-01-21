@@ -136,6 +136,10 @@ HowlingWolvesAudioProcessor::createParameterLayout() {
   // Example: Master Gain
   layout.add(std::make_unique<juce::AudioParameterFloat>("gain", "Gain", 0.0f,
                                                          1.0f, 0.5f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>("pan", "Pan", -1.0f,
+                                                         1.0f, 0.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>("tune", "Tune", -12.0f,
+                                                         12.0f, 0.0f));
 
   // Attack, Decay, Sustain, Release (Simple ADSR for now, can be expanded)
   layout.add(std::make_unique<juce::AudioParameterFloat>("attack", "Attack",

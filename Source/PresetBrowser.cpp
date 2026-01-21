@@ -1,16 +1,15 @@
 #include "PresetBrowser.h"
+#include "ModernCyberLookAndFeel.h"
 
 PresetBrowser::PresetBrowser(PresetManager &pm) : presetManager(pm) {
   addAndMakeVisible(presetList);
   presetList.setModel(this);
   presetList.setColour(juce::ListBox::backgroundColourId,
                        juce::Colours::transparentBlack);
-  presetList.setRowHeight(40);
+  presetList.setRowHeight(22);
 
-  addAndMakeVisible(titleLabel);
-  titleLabel.setFont(juce::Font(20.0f, juce::Font::bold));
-  titleLabel.setJustificationType(juce::Justification::centred);
-  titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+  // No title label in sidebar mode
+  // addAndMakeVisible(titleLabel); // Removed
 
   // Search Box
   addAndMakeVisible(searchBox);
@@ -41,25 +40,22 @@ PresetBrowser::PresetBrowser(PresetManager &pm) : presetManager(pm) {
 PresetBrowser::~PresetBrowser() {}
 
 void PresetBrowser::paint(juce::Graphics &g) {
-  g.fillAll(
-      juce::Colour::fromString("FF111111").withAlpha(0.95f)); // Dark Overlay
-
-  g.setColour(juce::Colour::fromString("FF666670"));
-  g.drawRect(getLocalBounds(), 1.0f); // Border
+  // Sidebar background handled by parent or transparent
+  // Just draw a subtle separator on the right
+  g.setColour(WolfColors::BORDER_SUBTLE);
+  g.fillRect(getWidth() - 1, 0, 1, getHeight());
 }
 
 void PresetBrowser::resized() {
   auto area = getLocalBounds();
 
-  // Header
-  auto header = area.removeFromTop(50);
-  titleLabel.setBounds(header.removeFromLeft(header.getWidth() / 3));
+  // No header title, just search and sort
+  auto topArea = area.removeFromTop(70);
 
-  // Search & Filter
-  searchBox.setBounds(header.removeFromLeft(header.getWidth() / 2).reduced(5));
-  categoryFilter.setBounds(header.reduced(5));
+  searchBox.setBounds(topArea.removeFromTop(25).reduced(5, 5));
+  categoryFilter.setBounds(topArea.removeFromTop(25).reduced(5, 0));
 
-  area.reduce(20, 20);
+  area.reduce(5, 0);
   presetList.setBounds(area);
 }
 
@@ -72,14 +68,14 @@ void PresetBrowser::paintListBoxItem(int rowNumber, juce::Graphics &g,
     return;
 
   if (rowIsSelected) {
-    g.setColour(juce::Colour::fromString("FF88CCFF").withAlpha(0.2f));
+    g.setColour(WolfColors::ACCENT_CYAN.withAlpha(0.2f));
     g.fillRect(0, 0, width, height);
   }
 
-  g.setColour(rowIsSelected ? juce::Colour::fromString("FF88CCFF")
-                            : juce::Colours::white.withAlpha(0.8f));
-  g.setFont(16.0f);
-  g.drawText(displayedPresets[rowNumber], 5, 0, width - 10, height,
+  g.setColour(rowIsSelected ? WolfColors::ACCENT_CYAN
+                            : WolfColors::TEXT_PRIMARY);
+  g.setFont(12.0f); // Compact font
+  g.drawText(displayedPresets[rowNumber], 8, 0, width - 10, height,
              juce::Justification::centredLeft, true);
 
   g.setColour(juce::Colours::white.withAlpha(0.1f));

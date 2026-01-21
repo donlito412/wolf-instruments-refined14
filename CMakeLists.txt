@@ -45,6 +45,8 @@ target_sources(HowlingWolves
         Source/PresetManager.h
         Source/PresetBrowser.cpp
         Source/PresetBrowser.h
+        Source/PlayTab.cpp
+        Source/PlayTab.h
         Source/VisualizerComponent.cpp
         Source/VisualizerComponent.h
         Source/CustomKnobLookAndFeel.cpp
@@ -59,6 +61,8 @@ target_sources(HowlingWolves
         Source/VerticalFaderLookAndFeel.h
         Source/LEDToggleButton.cpp
         Source/LEDToggleButton.h
+        Source/ModernCyberLookAndFeel.cpp
+        Source/ModernCyberLookAndFeel.h
 )
 
 # Link against JUCE libraries
@@ -83,5 +87,6 @@ target_link_libraries(HowlingWolves
 juce_add_binary_data(HowlingWolvesAssets
     SOURCES
         Resources/background.png
+        Resources/howling_wolves_cave_bg_1768783846310.png
 )
 target_link_libraries(HowlingWolves PRIVATE HowlingWolvesAssets)
