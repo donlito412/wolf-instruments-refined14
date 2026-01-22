@@ -57,6 +57,12 @@ HowlingWolvesAudioProcessorEditor::HowlingWolvesAudioProcessorEditor(
   // Preset browser overlay
   addChildComponent(presetBrowser);
   presetBrowser.setVisible(false);
+
+  // Handle preset selection
+  presetBrowser.onPresetSelected = [this](const juce::String &presetName) {
+    browseButton.setButtonText(presetName);
+    presetBrowser.setVisible(false);
+  };
 }
 
 HowlingWolvesAudioProcessorEditor::~HowlingWolvesAudioProcessorEditor() {

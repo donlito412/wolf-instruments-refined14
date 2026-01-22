@@ -8,7 +8,7 @@ public:
   PresetBrowser(PresetManager &pm);
   ~PresetBrowser() override;
 
-  std::function<void()> onPresetSelected;
+  std::function<void(const juce::String &)> onPresetSelected;
 
   void paint(juce::Graphics &) override;
   void resized() override;

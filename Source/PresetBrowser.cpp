@@ -96,8 +96,9 @@ void PresetBrowser::listBoxItemClicked(int rowNumber,
   const auto presetName = displayedPresets[rowNumber];
   presetManager.loadPreset(presetName);
 
-  // User requested to hide the list after selection
-  // Resetting category to 0 will cause filterPresets() to clear the list (see
+  // Notify listeners
+  if (onPresetSelected)
+    onPresetSelected(presetName);
   // logic in filterPresets) We use sendNotification to ensure the callback
   // triggers and updates the list
   searchBox.setText("", juce::dontSendNotification);
@@ -111,9 +112,6 @@ void PresetBrowser::listBoxItemClicked(int rowNumber,
 
   // Manually hide the list
   filterPresets();
-
-  if (onPresetSelected)
-    onPresetSelected();
 }
 
 void PresetBrowser::selectedRowsChanged(int) {}
