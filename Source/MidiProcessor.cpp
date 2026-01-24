@@ -56,21 +56,46 @@ int Arpeggiator::getNextNote() {
   if (sortedNotes.empty())
     return -1;
 
-  // Multi-Octave Logic
   int numNotes = sortedNotes.size();
   int totalSteps = numNotes * numOctaves;
 
   if (totalSteps == 0)
-    return -1; // Safety
+    return -1;
 
-  int wrappedStep = currentStep % totalSteps;
+  int effectiveStep = 0;
 
-  int noteIndex = wrappedStep % numNotes;
-  int octaveOffset = wrappedStep / numNotes;
+  // Mode Logic based on arpMode parameter
+  switch (arpMode) {
+  case 0: // Up
+    effectiveStep = currentStep % totalSteps;
+    break;
+  case 1: // Down
+    effectiveStep = (totalSteps - 1) - (currentStep % totalSteps);
+    break;
+  case 2: // Up/Down (Ping Pong)
+  {
+    if (totalSteps <= 1) {
+      effectiveStep = 0;
+    } else {
+      int sequenceLen = (totalSteps * 2) - 2;
+      int phase = currentStep % sequenceLen;
+      effectiveStep = (phase < totalSteps) ? phase : (sequenceLen - phase);
+    }
+  } break;
+  case 3: // Random
+    effectiveStep = juce::Random::getSystemRandom().nextInt(totalSteps);
+    break;
+  default:
+    effectiveStep = currentStep % totalSteps;
+    break;
+  }
+
+  int noteIndex = effectiveStep % numNotes;
+  int octaveOffset = effectiveStep / numNotes;
 
   int note = sortedNotes[noteIndex] + (octaveOffset * 12);
 
-  // Range check (0-127)
+  // Range check
   if (note > 127)
     note = 127;
 
@@ -105,8 +130,25 @@ double Arpeggiator::getSamplesPerStep(juce::AudioPlayHead *playHead) {
 void Arpeggiator::process(juce::MidiBuffer &midiMessages, int numSamples,
                           juce::AudioPlayHead *playHead) {
 
-  // --- 1. Handle Active Notes (Pending Offs) if DISABLED ---
+  // --- 1. ALWAYS Update Internal State (Input Sensing) ---
+  // We scan the buffer to keep sortedNotes up to date,
+  // regardless of whether Arp is enabled or not.
+  // This prevents "Stale State" where released keys stick in memory.
+
+  for (const auto metadata : midiMessages) {
+    auto msg = metadata.getMessage();
+    if (msg.isNoteOn()) {
+      handleNoteOn(msg.getNoteNumber(), msg.getVelocity());
+    } else if (msg.isNoteOff()) {
+      handleNoteOff(msg.getNoteNumber());
+    } else if (msg.isAllNotesOff()) {
+      reset();
+    }
+  }
+
+  // --- 2. If DISABLED: Flush active notes and Return (Pass-Through) ---
   if (!enabled) {
+    // Just ensure any lingering arp notes are killed
     for (auto it = activeNotes.begin(); it != activeNotes.end();) {
       int noteOffPos = it->samplesRemaining;
       if (noteOffPos < numSamples) {
@@ -118,35 +160,27 @@ void Arpeggiator::process(juce::MidiBuffer &midiMessages, int numSamples,
         ++it;
       }
     }
+    // midiMessages remains untouched (contains original input notes)
     return;
   }
 
-  // --- 2. Process Input (Capture Input Notes, Filter them out) ---
-  juce::MidiBuffer processedMidi; // This will become our Output Buffer
+  // --- 3. If ENABLED: Filter Input & Generate Arp ---
+
+  // Create a clean buffer. We will populate it with everything EXCEPT input
+  // notes.
+  juce::MidiBuffer processedMidi;
 
   for (const auto metadata : midiMessages) {
     auto msg = metadata.getMessage();
-    if (msg.isNoteOn()) {
-      handleNoteOn(msg.getNoteNumber(), msg.getVelocity());
-    } else if (msg.isNoteOff()) {
-      handleNoteOff(msg.getNoteNumber());
-    } else if (msg.isAllNotesOff()) {
-      reset();
-    } else {
-      // Pass thru control changes, pitch bend, etc.
+    if (!msg.isNoteOn() && !msg.isNoteOff()) {
+      // Pass thru non-note events (CC, PitchBend)
       processedMidi.addEvent(msg, metadata.samplePosition);
     }
   }
 
-  // Now 'processedMidi' contains everything EXCEPT the input notes.
-  // We will append our generated notes (and pending offs) to THIS buffer.
-  // Then we swap it into 'midiMessages' at the very end.
-
-  // --- 3. Handle Active Notes (Pending Offs) ---
-  // Append to processedMidi so they go out!
+  // Append Active Notes (Pending Offs)
   for (auto it = activeNotes.begin(); it != activeNotes.end();) {
     int noteOffPos = it->samplesRemaining;
-
     if (noteOffPos < numSamples) {
       processedMidi.addEvent(juce::MidiMessage::noteOff(1, it->noteNumber),
                              noteOffPos);
@@ -157,9 +191,9 @@ void Arpeggiator::process(juce::MidiBuffer &midiMessages, int numSamples,
     }
   }
 
-  // --- 4. Generate Arp Notes ---
+  // Generate Arp Notes
   if (sortedNotes.empty()) {
-    midiMessages.swapWith(processedMidi); // Output cleaned buffer
+    midiMessages.swapWith(processedMidi); // Output clean buffer (silence)
     return;
   }
 
@@ -208,7 +242,7 @@ void Arpeggiator::process(juce::MidiBuffer &midiMessages, int numSamples,
     currentSamplePos += processAmount;
   }
 
-  // Final Swap: Use our constructed buffer as the output
+  // Final Swap
   midiMessages.swapWith(processedMidi);
 }
 
