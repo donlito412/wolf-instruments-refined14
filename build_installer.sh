@@ -29,6 +29,10 @@ echo "Staging AU..."
 mkdir -p "$STAGING_DIR/au_payload/Library/Audio/Plug-Ins/Components"
 cp -R "$BUILD_DIR/AU/$PLUGIN_NAME.component" "$STAGING_DIR/au_payload/Library/Audio/Plug-Ins/Components/"
 
+echo "Staging Standalone App..."
+mkdir -p "$STAGING_DIR/app_payload/Applications"
+cp -R "$BUILD_DIR/Standalone/$PLUGIN_NAME.app" "$STAGING_DIR/app_payload/Applications/"
+
 echo "Staging Content..."
 # Install to /Users/Shared/Wolf Instruments/Factory Presets
 # Note: Installer usually runs as root. Files will be owned by root.
@@ -79,6 +83,13 @@ pkgbuild --root "$STAGING_DIR/au_payload" \
          --install-location "/" \
          "$STAGING_DIR/au.pkg"
 
+# App Package
+pkgbuild --root "$STAGING_DIR/app_payload" \
+         --identifier "$IDENTIFIER.app" \
+         --version "$PLUGIN_VERSION" \
+         --install-location "/" \
+         "$STAGING_DIR/app.pkg"
+
 # Content Package
 pkgbuild --root "$STAGING_DIR/content_payload" \
          --identifier "$IDENTIFIER.content" \
@@ -91,6 +102,7 @@ echo "Synthesizing Distribution XML..."
 productbuild --synthesize \
              --package "$STAGING_DIR/vst3.pkg" \
              --package "$STAGING_DIR/au.pkg" \
+             --package "$STAGING_DIR/app.pkg" \
              --package "$STAGING_DIR/content.pkg" \
              "$STAGING_DIR/distribution.xml"
 

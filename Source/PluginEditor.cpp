@@ -19,6 +19,10 @@ HowlingWolvesAudioProcessorEditor::HowlingWolvesAudioProcessorEditor(
       BinaryData::howling_wolves_cave_bg_1768783846310_png,
       BinaryData::howling_wolves_cave_bg_1768783846310_pngSize);
 
+  // Load Logo
+  logoImage = juce::ImageCache::getFromMemory(BinaryData::logo_full_png,
+                                              BinaryData::logo_full_pngSize);
+
   // Set up size constraints
   // NUCLEAR OPTION: Fixed Size, No Limits (Simplicity)
   setResizable(false, false);
@@ -83,6 +87,12 @@ void HowlingWolvesAudioProcessorEditor::paint(juce::Graphics &g) {
   // Draw cave background
   g.drawImage(backgroundImage, getLocalBounds().toFloat(),
               juce::RectanglePlacement::fillDestination);
+
+  // Draw Logo (Top Left)
+  if (logoImage.isValid()) {
+    g.drawImage(logoImage, 10, 10, 200, 50, 0, 0, logoImage.getWidth(),
+                logoImage.getHeight());
+  }
 }
 
 void HowlingWolvesAudioProcessorEditor::resized() {

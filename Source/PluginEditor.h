@@ -40,6 +40,7 @@ private:
 
   // Cave background
   juce::Image backgroundImage;
+  juce::Image logoImage;
 
   // Top bar buttons
   juce::TextButton browseButton{"BROWSE"};

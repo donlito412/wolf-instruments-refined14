@@ -25,6 +25,7 @@ juce_add_plugin(HowlingWolves
     PLUGIN_CODE Hwl2
     FORMATS AU VST3 Standalone
     PRODUCT_NAME "Howling Wolves"
+    ICON_BIG "Resources/logo_icon.png"
 )
 
 juce_generate_juce_header(HowlingWolves)
@@ -106,5 +107,7 @@ juce_add_binary_data(HowlingWolvesAssets
     SOURCES
         Resources/background.png
         Resources/howling_wolves_cave_bg_1768783846310.png
+        Resources/logo_full.png
+        Resources/logo_icon.png
 )
 target_link_libraries(HowlingWolves PRIVATE HowlingWolvesAssets)
