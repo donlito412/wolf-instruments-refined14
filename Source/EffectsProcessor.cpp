@@ -15,129 +15,167 @@ void EffectsProcessor::prepare(juce::dsp::ProcessSpec &spec) {
 
   // Prepare Distortion
   distortion.prepare(spec);
+  distDriveParam.reset(currentSampleRate, 0.05); // 50ms ramp
+  distMixParam.reset(currentSampleRate, 0.05);
+
+  // Prepare Transient Shaper
+  transientShaper.prepare(spec);
 
   // Prepare Delay
   delayLine.prepare(spec);
   // Important: Set correct max delay based on sample rate
   delayLine.setMaximumDelayInSamples(
       static_cast<int>(spec.sampleRate * maxDelayTime));
-
-  // Allocate mix buffer or feedback storage?
-  // juce::dsp::DelayLine handles internal storage.
-
   delayLine.reset();
+
+  delayTimeParam.reset(currentSampleRate,
+                       0.5); // Slower ramp for delay time to avoid pitch jumps?
+                             // Actually fast ramp + interpolation is better for
+                             // "swoop". 0.05 is standard.
+  delayTimeParam.reset(currentSampleRate, 0.05);
+  delayFeedbackParam.reset(currentSampleRate, 0.05);
+  delayMixParam.reset(currentSampleRate, 0.05);
 
   // Prepare Reverb
   reverb.prepare(spec);
   reverb.reset();
+  reverbMixParam.reset(currentSampleRate, 0.05);
+
+  // Reserve ramp buffer
+  rampBuffer.reserve(spec.maximumBlockSize);
 }
 
 void EffectsProcessor::reset() {
   distortion.reset();
+  transientShaper.reset();
   delayLine.reset();
   reverb.reset();
+
+  // Reset smoothers to target ?? No, usually just keep current.
 }
 
 void EffectsProcessor::updateParameters(float distDrive, float distMix,
                                         float delayTime, float delayFeedback,
                                         float delayMix, float reverbSize,
-                                        float reverbDamping, float reverbMix) {
-  distDriveParam = distDrive;
-  distMixParam = distMix;
+                                        float reverbDamping, float reverbMix,
+                                        float biteAmount) {
+  distDriveParam.setTargetValue(distDrive);
+  distMixParam.setTargetValue(distMix);
+  transientShaper.setAmount(biteAmount); // Shaper handles its own smoothing
 
-  delayTimeParam = delayTime;
-  delayFeedbackParam = delayFeedback;
-  delayMixParam = delayMix;
+  delayTimeParam.setTargetValue(delayTime);
+  delayFeedbackParam.setTargetValue(delayFeedback);
+  delayMixParam.setTargetValue(delayMix);
 
   // Map Reverb params
   reverbParams.roomSize = reverbSize;
   reverbParams.damping = reverbDamping;
+
+  // Revert to internal mixing to ensure Dry/Wet balance works without temp
+  // buffer
   reverbParams.wetLevel = reverbMix;
   reverbParams.dryLevel = 1.0f - reverbMix;
+
   reverbParams.width = 1.0f;
   reverbParams.freezeMode = 0.0f;
 
   reverb.setParameters(reverbParams);
+  reverbMixParam.setTargetValue(
+      reverbMix); // Keep for the on/off check in processReverb
 }
 
 void EffectsProcessor::process(juce::AudioBuffer<float> &buffer) {
   juce::ScopedNoDenormals noDenormals;
 
+  for (auto effect : chainOrder) {
+    switch (effect) {
+    case EffectType::Distortion:
+      processDistortion(buffer);
+      break;
+    case EffectType::TransientShaper:
+      processTransientShaper(buffer);
+      break;
+    case EffectType::Delay:
+      processDelay(buffer);
+      break;
+    case EffectType::Reverb:
+      processReverb(buffer);
+      break;
+    }
+  }
+}
+
+void EffectsProcessor::processDistortion(juce::AudioBuffer<float> &buffer) {
   auto totalNumInputChannels = buffer.getNumChannels();
   auto numSamples = buffer.getNumSamples();
 
-  // ===========================================================================
-  // 1. Distortion (Soft Clipping)
-  // ===========================================================================
-  // We apply Pre-Gain -> Tanh -> Mix
-  // Even if Mix is 0, we can skip processing to save CPU, but for now we run it
-  // if mix > 0.
+  auto *ch0 = buffer.getWritePointer(0);
+  auto *ch1 = (totalNumInputChannels > 1) ? buffer.getWritePointer(1) : nullptr;
 
-  if (distMixParam > 0.0f) {
-    // Apply Drive (Gain)
-    // Drive 0.0 -> 1.0 Gain (Unity)
-    // Drive 1.0 -> 50.0 Gain (+34dB)
-    float gain = 1.0f + (distDriveParam * 49.0f);
+  for (int i = 0; i < numSamples; ++i) {
+    float drive = distDriveParam.getNextValue();
+    float mix = distMixParam.getNextValue();
 
-    // We need to process purely wet for the wet path?
-    // Or process in-place and mix?
-    // Let's do Channel-by-Channel for simplicity and correct mixing.
+    float gain = 1.0f + (drive * 49.0f);
 
-    for (int ch = 0; ch < totalNumInputChannels; ++ch) {
-      auto *data = buffer.getWritePointer(ch);
-      for (int i = 0; i < numSamples; ++i) {
-        float dry = data[i];
-        float driven = dry * gain;
-        float wet = std::tanh(driven);
+    float dry0 = ch0[i];
+    float wet0 = std::tanh(dry0 * gain);
+    ch0[i] = (dry0 * (1.0f - mix)) + (wet0 * mix);
 
-        // Mix
-        data[i] = (dry * (1.0f - distMixParam)) + (wet * distMixParam);
-      }
+    if (ch1) {
+      float dry1 = ch1[i];
+      float wet1 = std::tanh(dry1 * gain);
+      ch1[i] = (dry1 * (1.0f - mix)) + (wet1 * mix);
     }
   }
+}
 
-  // ===========================================================================
-  // 2. Delay
-  // ===========================================================================
-  if (delayMixParam > 0.0f) {
-    // Calculate Delay Time in Samples
-    float delaySamples = delayTimeParam * (float)currentSampleRate;
-    // Clamp to valid range (1 sample to max) -> strict clamp
+void EffectsProcessor::processTransientShaper(
+    juce::AudioBuffer<float> &buffer) {
+  transientShaper.process(buffer);
+}
+
+void EffectsProcessor::processDelay(juce::AudioBuffer<float> &buffer) {
+  auto totalNumInputChannels = buffer.getNumChannels();
+  auto numSamples = buffer.getNumSamples();
+
+  auto *ch0 = buffer.getWritePointer(0);
+  auto *ch1 = (totalNumInputChannels > 1) ? buffer.getWritePointer(1) : nullptr;
+
+  for (int i = 0; i < numSamples; ++i) {
+    float time = delayTimeParam.getNextValue();
+    float fdbk = delayFeedbackParam.getNextValue();
+    float mix = delayMixParam.getNextValue();
+
+    float delaySamples = time * (float)currentSampleRate;
     delaySamples = juce::jlimit(1.0f, (float)(maxDelayTime * currentSampleRate),
                                 delaySamples);
 
-    // Set Delay
     delayLine.setDelay(delaySamples);
 
-    for (int ch = 0; ch < totalNumInputChannels; ++ch) {
-      auto *channelData = buffer.getWritePointer(ch);
-      for (int i = 0; i < numSamples; ++i) {
-        float input = channelData[i];
+    {
+      float input = ch0[i];
+      float delayed = delayLine.popSample(0, -1.0f);
+      float fbSignal = input + (delayed * fdbk);
+      delayLine.pushSample(0, fbSignal);
+      ch0[i] = input + (delayed * mix);
+    }
 
-        // Standard Feedback Delay:
-        // 1. Read delayed signal (pop)
-        // Pass -1.0f to use the setDelay() value
-        float delayedSignal = delayLine.popSample(ch, -1.0f);
-
-        // 2. Calculate what to push back (Feedback)
-        // Feedback loop: Input + (Delayed * Feedback)
-        float feedbackSignal = input + (delayedSignal * delayFeedbackParam);
-
-        // 3. Push to delay line
-        delayLine.pushSample(ch, feedbackSignal);
-
-        // 4. Output Mixer: Dry + (Delayed * Wet)
-        channelData[i] = input + (delayedSignal * delayMixParam);
-      }
+    if (ch1) {
+      float input = ch1[i];
+      float delayed = delayLine.popSample(1, -1.0f);
+      float fbSignal = input + (delayed * fdbk);
+      delayLine.pushSample(1, fbSignal);
+      ch1[i] = input + (delayed * mix);
     }
   }
+}
 
-  // ===========================================================================
-  // 3. Reverb
-  // ===========================================================================
-  if (reverbMixParam > 0.0f) {
-    // JUCE Reverb handles mixing via parameters (wetLevel, dryLevel).
-    // So we just process in place.
+void EffectsProcessor::processReverb(juce::AudioBuffer<float> &buffer) {
+  // Use TargetValue because we are using block-based mixing via setParameters,
+  // so the Smoother isn't technically advanced per sample, but Target holds
+  // current setting.
+  if (reverbMixParam.getTargetValue() > 0.0f) {
     juce::dsp::AudioBlock<float> block(buffer);
     juce::dsp::ProcessContextReplacing<float> context(block);
     reverb.process(context);

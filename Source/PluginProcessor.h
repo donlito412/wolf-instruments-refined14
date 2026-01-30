@@ -2,6 +2,7 @@
 
 #include "EffectsProcessor.h"
 #include "FilterProcessor.h"
+#include "HuntEngine.h"
 #include "LFOProcessor.h"
 #include "MidiProcessor.h"
 #include "PresetManager.h"
@@ -49,8 +50,11 @@ public:
   //==============================================================================
   juce::AudioProcessorValueTreeState &getAPVTS() { return apvts; }
   SynthEngine &getSynth() { return synthEngine; }
+  SampleManager &getSampleManager() { return sampleManager; }
+
   juce::MidiKeyboardState &getKeyboardState() { return keyboardState; }
   PresetManager &getPresetManager() { return presetManager; }
+  HuntEngine &getHuntEngine() { return huntEngine; }
 
   // Visualizer FIFO
   // Ideally, PluginProcessor polls this, but we need to push to it.
@@ -86,6 +90,7 @@ private:
   LFOProcessor lfoProcessor;
   EffectsProcessor effectsProcessor;
   MidiProcessor midiProcessor;
+  HuntEngine huntEngine;
 
   //==============================================================================
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HowlingWolvesAudioProcessor)

@@ -34,7 +34,7 @@ public:
   }
 
   // DSP Parameters
-  void updateFilter(float cutoff, float resonance);
+  void updateFilter(float cutoff, float resonance, int filterType);
   void updateLFO(float rate, float depth);
   void prepare(double sampleRate, int samplesPerBlock);
 
@@ -47,6 +47,7 @@ public:
   // New Sample Params
   void updateSampleParams(float tune, float sampleStart, float sampleEnd,
                           bool loop);
+  void setPan(float newPan);
 
   // Override render to add post-processing (Filter)
   void renderNextBlock(juce::AudioBuffer<float> &outputBuffer, int startSample,
@@ -59,6 +60,7 @@ private:
   juce::dsp::StateVariableTPTFilter<float> filter;
   juce::dsp::Oscillator<float> lfo; // For filter modulation
   float lfoDepth = 0.0f;
+  float pan = 0.0f; // -1.0 (Left) to 1.0 (Right)
 
   juce::ADSR adsr;
   juce::ADSR::Parameters adsrParams;
@@ -73,6 +75,7 @@ private:
   // Base parameters for modulation
   float baseCutoff = 20000.0f;
   float baseResonance = 0.1f;
+  bool isNotch = false;
 
   juce::AudioBuffer<float> tempBuffer;
 
@@ -92,9 +95,18 @@ public:
   void prepare(double sampleRate, int samplesPerBlock);
 
   void updateParams(float attack, float decay, float sustain, float release,
-                    float cutoff, float resonance, float lfoRate,
-                    float lfoDepth);
+                    float cutoff, float resonance, int filterType,
+                    float lfoRate, float lfoDepth);
 
   void updateSampleParams(float tune, float sampleStart, float sampleEnd,
                           bool loop);
+
+  // Unison (Pack Mode) parameters
+  void setPackMode(int size, float spread); // size 1-8, spread 0.0-1.0
+
+  void noteOn(int midiChannel, int midiNoteNumber, float velocity) override;
+
+private:
+  int packSize = 1;
+  float packSpread = 0.0f; // Detune and Pan spread amount
 };

@@ -139,15 +139,22 @@ void HowlingWolvesAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   auto *delayMix = apvts.getRawParameterValue("delayMix");
   auto *revSize = apvts.getRawParameterValue("reverbSize");
   auto *revDamp = apvts.getRawParameterValue("reverbDamping");
-  auto *revMix = apvts.getRawParameterValue("reverbMix");
+  auto *revMix = apvts.getRawParameterValue("REVERB_MIX");
+
+  // Apply parameters to synth engine
+  auto *filterTypeParam = apvts.getRawParameterValue("filterType");
 
   // Apply parameters to synth engine
   if (attackParam && decayParam && sustainParam && releaseParam &&
-      filterCutoffParam && filterResParam && lfoRateParam && lfoDepthParam) {
-    synthEngine.updateParams(attackParam->load(), decayParam->load(),
-                             sustainParam->load(), releaseParam->load(),
-                             filterCutoffParam->load(), filterResParam->load(),
-                             lfoRateParam->load(), lfoDepthParam->load());
+      filterCutoffParam && filterResParam && lfoRateParam && lfoDepthParam &&
+      filterTypeParam) {
+
+    int fType = (int)filterTypeParam->load();
+
+    synthEngine.updateParams(
+        attackParam->load(), decayParam->load(), sustainParam->load(),
+        releaseParam->load(), filterCutoffParam->load(), filterResParam->load(),
+        fType, lfoRateParam->load(), lfoDepthParam->load());
   }
 
   // --- Update Midi Processor ---
@@ -217,9 +224,43 @@ void HowlingWolvesAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   float revDampVal = revDamp ? revDamp->load() : 0.5f;
   float revMixVal = revMix ? revMix->load() : 0.5f; // Default AUDIBLE
 
+  float biteVal = 0.0f;
+  if (auto *biteParam = apvts.getRawParameterValue("BITE"))
+    biteVal = *biteParam;
+
   effectsProcessor.updateParameters(distDriveVal, distMixVal, delayTimeVal,
                                     delayFdbkVal, delayMixVal, revSizeVal,
-                                    revDampVal, revMixVal);
+                                    revDampVal, revMixVal, biteVal);
+
+  // Update Chain Order
+  auto *chainOrderParam = apvts.getRawParameterValue("CHAIN_ORDER");
+  if (chainOrderParam) {
+    int mode = (int)chainOrderParam->load();
+    using ET = EffectsProcessor::EffectType;
+    std::array<ET, 4> order;
+
+    // Standard: Dist -> Bite -> Delay -> Reverb
+    // Ethereal: Reverb -> Delay -> Dist -> Bite
+    // Chaos: Delay -> Dist -> Bite -> Reverb
+    // Reverse: Reverb -> Delay -> Bite -> Dist
+
+    switch (mode) {
+    default:
+    case 0:
+      order = {ET::Distortion, ET::TransientShaper, ET::Delay, ET::Reverb};
+      break;
+    case 1:
+      order = {ET::Reverb, ET::Delay, ET::Distortion, ET::TransientShaper};
+      break;
+    case 2:
+      order = {ET::Delay, ET::Distortion, ET::TransientShaper, ET::Reverb};
+      break;
+    case 3:
+      order = {ET::Reverb, ET::Delay, ET::TransientShaper, ET::Distortion};
+      break;
+    }
+    effectsProcessor.setChainOrder(order);
+  }
 
   // Process synth
   synthEngine.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
@@ -264,6 +305,7 @@ juce::AudioProcessorEditor *HowlingWolvesAudioProcessor::createEditor() {
 //==============================================================================
 void HowlingWolvesAudioProcessor::getStateInformation(
     juce::MemoryBlock &destData) {
+
   auto state = apvts.copyState();
   std::unique_ptr<juce::XmlElement> xml(state.createXml());
   copyXmlToBinary(*xml, destData);
@@ -274,9 +316,11 @@ void HowlingWolvesAudioProcessor::setStateInformation(const void *data,
   std::unique_ptr<juce::XmlElement> xmlState(
       getXmlFromBinary(data, sizeInBytes));
 
-  if (xmlState.get() != nullptr)
-    if (xmlState->hasTagName(apvts.state.getType()))
+  if (xmlState.get() != nullptr) {
+    if (xmlState->hasTagName(apvts.state.getType())) {
       apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
+    }
+  }
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -353,7 +397,11 @@ HowlingWolvesAudioProcessor::createParameterLayout() {
   layout.add(std::make_unique<juce::AudioParameterFloat>(
       "reverbDamping", "Reverb Damping", 0.0f, 1.0f, 0.5f));
   layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "reverbMix", "Reverb Mix", 0.0f, 1.0f, 0.0f));
+      "REVERB_MIX", "Reverb Mix", 0.0f, 1.0f, 0.3f));
+
+  // Transient Shaper
+  layout.add(std::make_unique<juce::AudioParameterFloat>("BITE", "Bite Amount",
+                                                         -1.0f, 1.0f, 0.0f));
 
   // --- MIDI Performance Parameters ---
   layout.add(std::make_unique<juce::AudioParameterBool>("arpEnabled", "Arp On",
@@ -376,6 +424,15 @@ HowlingWolvesAudioProcessor::createParameterLayout() {
   layout.add(std::make_unique<juce::AudioParameterChoice>(
       "chordMode", "Chord Mode",
       juce::StringArray{"Off", "Major", "Minor", "7th", "9th"}, 0));
+
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      "HUNT_MODE", "Hunt Mode", juce::StringArray{"Stalk", "Chase", "Kill"},
+      0));
+
+  // Signal Chain Order
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      "CHAIN_ORDER", "Signal Chain",
+      juce::StringArray{"Standard", "Ethereal", "Chaos", "Reverse"}, 0));
 
   return layout;
 }

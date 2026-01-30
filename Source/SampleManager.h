@@ -14,6 +14,7 @@ public:
 
   void loadSamples(); // Initial load (optional)
   void loadSound(const juce::File &file);
+  void loadDrumKit(const juce::File &kitDirectory);
 
 private:
   SynthEngine &synthEngine;

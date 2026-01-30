@@ -1,4 +1,5 @@
 #include "EffectsTab.h"
+#include "HuntEngine.h"
 
 EffectsTab::EffectsTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
   // --- Distortion ---
@@ -30,7 +31,61 @@ EffectsTab::EffectsTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
   setupKnob(reverbSizeSlider, "Size", reverbSizeAttachment, "reverbSize");
   setupKnob(reverbDampingSlider, "Damp", reverbDampingAttachment,
             "reverbDamping");
-  setupKnob(reverbMixSlider, "Mix", reverbMixAttachment, "reverbMix");
+  setupKnob(reverbMixSlider, "Mix", reverbMixAttachment, "REVERB_MIX");
+
+  // --- Bite ---
+  addAndMakeVisible(biteLabel);
+  biteLabel.setText("BITE", juce::dontSendNotification);
+  biteLabel.setFont(juce::FontOptions(14.0f).withStyle("Bold"));
+  biteLabel.setColour(juce::Label::textColourId, WolfColors::ACCENT_CYAN);
+
+  setupKnob(biteSlider, "Bite", biteAttachment, "BITE");
+
+  // --- Hunt ---
+  addAndMakeVisible(huntLabel);
+  huntLabel.setText("THE HUNT", juce::dontSendNotification);
+  huntLabel.setFont(juce::FontOptions(14.0f).withStyle("Bold"));
+  huntLabel.setColour(juce::Label::textColourId,
+                      WolfColors::ACCENT_RED); // Special color
+
+  addAndMakeVisible(huntModeBox);
+  huntModeBox.addItemList(juce::StringArray{"Stalk", "Chase", "Kill"}, 1);
+  huntModeBox.setJustificationType(juce::Justification::centred);
+  huntModeAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+          audioProcessor.getAPVTS(), "HUNT_MODE", huntModeBox);
+
+  addAndMakeVisible(huntButton);
+  huntButton.setButtonText("HUNT");
+  huntButton.setColour(juce::TextButton::buttonColourId,
+                       WolfColors::ACCENT_RED);
+  huntButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+
+  huntButton.onClick = [this]() {
+    // Trigger hunt
+    // 1. Get Mode
+    int modeIndex = huntModeBox.getSelectedId() - 1; // 1-based to 0-based
+    if (modeIndex < 0)
+      modeIndex = 0;
+
+    // 2. Call Engine
+    auto mode = static_cast<HuntEngine::Mode>(modeIndex);
+    audioProcessor.getHuntEngine().hunt(audioProcessor.getAPVTS(), mode);
+  };
+
+  // --- Signal Chain ---
+  addAndMakeVisible(chainLabel);
+  chainLabel.setText("CHAIN", juce::dontSendNotification);
+  chainLabel.setFont(juce::FontOptions(14.0f).withStyle("Bold"));
+  chainLabel.setColour(juce::Label::textColourId, WolfColors::ACCENT_CYAN);
+
+  addAndMakeVisible(chainBox);
+  chainBox.addItemList(
+      juce::StringArray{"Standard", "Ethereal", "Chaos", "Reverse"}, 1);
+  chainBox.setJustificationType(juce::Justification::centred);
+  chainAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+          audioProcessor.getAPVTS(), "CHAIN_ORDER", chainBox);
 }
 
 EffectsTab::~EffectsTab() {}
@@ -59,10 +114,14 @@ void EffectsTab::setupKnob(
 void EffectsTab::paint(juce::Graphics &g) {
   auto area = getLocalBounds().reduced(20);
 
-  // Calculate 3 equal columns
-  auto distArea = area.removeFromLeft(area.getWidth() / 3).reduced(10);
-  auto delayArea = area.removeFromLeft(area.getWidth() / 2).reduced(10);
-  auto reverbArea = area.reduced(10);
+  // Calculate 4 equal columns (approx)
+  int colWidth = area.getWidth() / 4;
+
+  auto distArea = area.removeFromLeft(colWidth).reduced(10);
+  auto delayArea = area.removeFromLeft(colWidth).reduced(10);
+  auto reverbArea = area.removeFromLeft(colWidth).reduced(10);
+  // remaining is special area
+  auto specialArea = area.reduced(10);
 
   // Draw Panels
   g.setColour(WolfColors::PANEL_DARK);
@@ -75,7 +134,7 @@ void EffectsTab::paint(juce::Graphics &g) {
   g.drawRoundedRectangle(delayArea.toFloat(), 6.0f, 1.0f);
   g.drawRoundedRectangle(reverbArea.toFloat(), 6.0f, 1.0f);
 
-  // Draw Sub-labels (manual for now for simplicity)
+  // Draw Sub-labels
   g.setColour(WolfColors::TEXT_SECONDARY);
   g.setFont(12.0f);
 
@@ -100,21 +159,25 @@ void EffectsTab::paint(juce::Graphics &g) {
              juce::Justification::centred);
   g.drawText("Mix", reverbMixSlider.getBounds().translated(0, 65),
              juce::Justification::centred);
+
+  // Bite
+  g.drawText("Bite", biteSlider.getBounds().translated(0, 65),
+             juce::Justification::centred);
 }
 
 void EffectsTab::resized() {
   auto area = getLocalBounds().reduced(20);
 
-  // Calculate 3 equal columns
-  auto distArea = area.removeFromLeft(area.getWidth() / 3).reduced(10);
-  auto delayArea = area.removeFromLeft(area.getWidth() / 2).reduced(10);
-  auto reverbArea = area.reduced(10);
+  // Calculate 4 sections
+  int colWidth = area.getWidth() / 4;
+
+  auto distArea = area.removeFromLeft(colWidth).reduced(5);
+  auto delayArea = area.removeFromLeft(colWidth).reduced(5);
+  auto reverbArea = area.removeFromLeft(colWidth).reduced(5);
+  auto specialArea = area.reduced(5);
 
   // --- Distortion Layout ---
-  // 1. Label
   distLabel.setBounds(distArea.removeFromTop(30));
-
-  // 2. Knobs (Row)
   juce::FlexBox distKnobs;
   distKnobs.justifyContent = juce::FlexBox::JustifyContent::center;
   distKnobs.alignItems = juce::FlexBox::AlignItems::center;
@@ -124,14 +187,10 @@ void EffectsTab::resized() {
                           .withWidth(70)
                           .withHeight(70)
                           .withMargin({0, 0, 0, 10}));
-
-  distKnobs.performLayout(distArea); // Layout in remaining space
+  distKnobs.performLayout(distArea);
 
   // --- Delay Layout ---
-  // 1. Label
   delayLabel.setBounds(delayArea.removeFromTop(30));
-
-  // 2. Knobs (Row/Wrap)
   juce::FlexBox delayKnobs;
   delayKnobs.justifyContent = juce::FlexBox::JustifyContent::center;
   delayKnobs.alignItems = juce::FlexBox::AlignItems::center;
@@ -148,14 +207,10 @@ void EffectsTab::resized() {
                            .withWidth(60)
                            .withHeight(60)
                            .withMargin(5));
-
   delayKnobs.performLayout(delayArea);
 
   // --- Reverb Layout ---
-  // 1. Label
   reverbLabel.setBounds(reverbArea.removeFromTop(30));
-
-  // 2. Knobs (Row/Wrap)
   juce::FlexBox reverbKnobs;
   reverbKnobs.justifyContent = juce::FlexBox::JustifyContent::center;
   reverbKnobs.alignItems = juce::FlexBox::AlignItems::center;
@@ -172,6 +227,25 @@ void EffectsTab::resized() {
                             .withWidth(60)
                             .withHeight(60)
                             .withMargin(5));
-
   reverbKnobs.performLayout(reverbArea);
+
+  // --- Specials Layout (Bite + Hunt) ---
+  // --- Specials Layout (Bite + Hunt + Chain) ---
+  // Divide vertical space: Top=Chain, Mid=Bite, Bot=Hunt
+
+  auto chainArea = specialArea.removeFromTop(60);
+  chainLabel.setBounds(chainArea.removeFromTop(20));
+  chainBox.setBounds(chainArea.reduced(5));
+
+  auto biteArea = specialArea.removeFromTop(specialArea.getHeight() /
+                                            2); // Half remaining for Bite
+  biteLabel.setBounds(biteArea.removeFromTop(20));
+  biteSlider.setBounds(biteArea.reduced(5));
+
+  // Remaining is Hunt
+  huntLabel.setBounds(specialArea.removeFromTop(20));
+
+  auto huntControlArea = specialArea;
+  huntModeBox.setBounds(huntControlArea.removeFromTop(30).reduced(5));
+  huntButton.setBounds(huntControlArea.removeFromBottom(40).reduced(5));
 }

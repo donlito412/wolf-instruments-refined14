@@ -1,12 +1,13 @@
 #pragma once
 
-#include "EffectsTab.h" // Added
+// #include "DrumTab.h" // Added - DISABLED
+#include "EffectsTab.h"
 #include "MidiTab.h"
 #include "ModernCyberLookAndFeel.h"
 #include "ModulateTab.h"
 #include "PlayTab.h"
 #include "PluginProcessor.h"
-#include "SettingsTab.h" // Added
+#include "SettingsTab.h"
 #include <JuceHeader.h>
 
 //==============================================================================
@@ -47,6 +48,10 @@ private:
 
   // Preset browser overlay
   PresetBrowser presetBrowser;
+
+  // Drum Tab (New)
+  // Drum Tab (New)
+  // DrumTab drumTab;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(
       HowlingWolvesAudioProcessorEditor)

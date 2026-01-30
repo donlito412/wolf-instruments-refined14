@@ -21,6 +21,7 @@ const juce::Colour TEXT_DISABLED = juce::Colour(0xff555555);
 // Accent - Cyan/Teal (Absynth-inspired)
 const juce::Colour ACCENT_CYAN = juce::Colour(0xff00d9ff);
 const juce::Colour ACCENT_TEAL = juce::Colour(0xff00b8b8);
+const juce::Colour ACCENT_RED = juce::Colour(0xffff4444);
 const juce::Colour ACCENT_GLOW = juce::Colour(0x4400d9ff); // 27% opacity
 
 // Waveforms

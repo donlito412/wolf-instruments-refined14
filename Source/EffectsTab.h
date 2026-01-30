@@ -37,6 +37,25 @@ private:
       reverbSizeAttachment, reverbDampingAttachment, reverbMixAttachment;
   juce::Label reverbLabel;
 
+  // Bite
+  juce::Label biteLabel;
+  juce::Slider biteSlider;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+      biteAttachment;
+
+  // Hunt
+  juce::TextButton huntButton;
+  juce::ComboBox huntModeBox;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+      huntModeAttachment;
+  juce::Label huntLabel;
+
+  // Signal Chain
+  juce::Label chainLabel;
+  juce::ComboBox chainBox;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+      chainAttachment;
+
   // Helper
   void setupKnob(
       juce::Slider &slider, const juce::String &name,

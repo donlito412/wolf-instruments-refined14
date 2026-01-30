@@ -31,11 +31,34 @@ void HowlingVoice::prepare(double sampleRate, int samplesPerBlock) {
   tempBuffer.setSize(1, samplesPerBlock); // Mono voice
 }
 
-void HowlingVoice::updateFilter(float cutoff, float resonance) {
+void HowlingVoice::updateFilter(float cutoff, float resonance, int filterType) {
   baseCutoff = cutoff;
   baseResonance = resonance;
   filter.setCutoffFrequency(cutoff);
   filter.setResonance(resonance);
+
+  switch (filterType) {
+  case 0:
+    filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+    isNotch = false;
+    break;
+  case 1:
+    filter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
+    isNotch = false;
+    break;
+  case 2:
+    filter.setType(juce::dsp::StateVariableTPTFilterType::bandpass);
+    isNotch = false;
+    break;
+  case 3:
+    filter.setType(juce::dsp::StateVariableTPTFilterType::bandpass);
+    isNotch = true;
+    break;
+  default:
+    filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+    isNotch = false;
+    break;
+  }
 }
 
 void HowlingVoice::updateLFO(float rate, float depth) {
@@ -57,8 +80,11 @@ void HowlingVoice::updateSampleParams(float tune, float sampleStart,
   tuneSemitones = tune;
   sampleStartPercent = sampleStart;
   sampleEndPercent = sampleEnd;
+  sampleEndPercent = sampleEnd;
   isLooping = loop;
 }
+
+void HowlingVoice::setPan(float newPan) { pan = newPan; }
 
 void HowlingVoice::startNote(int midiNoteNumber, float velocity,
                              juce::SynthesiserSound *sound,
@@ -159,6 +185,17 @@ void HowlingVoice::renderNextBlock(juce::AudioBuffer<float> &outputBuffer,
     if (std::isnan(input))
       input = 0.0f;
     float filtered = filter.processSample(0, input);
+
+    if (isNotch) {
+      filtered = input - filtered;
+    }
+
+    // Safety Check for NaN/Infinity
+    if (std::isnan(filtered) || std::isinf(filtered)) {
+      filtered = 0.0f;
+      filter.reset(); // Reset state to recover from explosion
+    }
+
     bufferData[i] = filtered;
   }
 
@@ -168,7 +205,17 @@ void HowlingVoice::renderNextBlock(juce::AudioBuffer<float> &outputBuffer,
   }
 
   for (int ch = 0; ch < outputBuffer.getNumChannels(); ++ch) {
-    outputBuffer.addFrom(ch, startSample, tempBuffer, 0, 0, numSamples);
+    // Simple Constant Power Panning
+    float gain = 1.0f;
+    if (outputBuffer.getNumChannels() == 2) {
+      float panRad = (pan + 1.0f) * juce::MathConstants<float>::pi * 0.25f;
+      if (ch == 0)
+        gain = std::cos(panRad);
+      if (ch == 1)
+        gain = std::sin(panRad);
+    }
+
+    outputBuffer.addFrom(ch, startSample, tempBuffer, 0, 0, numSamples, gain);
   }
 }
 
@@ -209,12 +256,33 @@ void SynthEngine::updateSampleParams(float tune, float sampleStart,
 
 void SynthEngine::updateParams(float attack, float decay, float sustain,
                                float release, float cutoff, float resonance,
-                               float lfoRate, float lfoDepth) {
+                               int filterType, float lfoRate, float lfoDepth) {
   for (int i = 0; i < getNumVoices(); ++i) {
     if (auto *voice = dynamic_cast<HowlingVoice *>(getVoice(i))) {
       voice->updateADSR(attack, decay, sustain, release);
-      voice->updateFilter(cutoff, resonance);
+      voice->updateFilter(cutoff, resonance, filterType);
       voice->updateLFO(lfoRate, lfoDepth);
     }
+  }
+}
+
+void SynthEngine::setPackMode(int size, float spread) {
+  packSize = size;
+  packSpread = spread;
+}
+
+void SynthEngine::noteOn(int midiChannel, int midiNoteNumber, float velocity) {
+  // Standard note on
+  // If Unison is active (packSize > 1), trigger multiple voices
+
+  if (packSize > 1 && packSpread > 0.0f) {
+    // Basic Unison: Trigger extra voices with detune
+    // Since SamplerVoice doesn't support fine detune easily without pitch ratio
+    // hack, we might just trigger neighbor notes or same note multiple times if
+    // we have voice stealing? Standard JUCE Synthesiser handles note
+    // allocation. For now, just call base.
+    juce::Synthesiser::noteOn(midiChannel, midiNoteNumber, velocity);
+  } else {
+    juce::Synthesiser::noteOn(midiChannel, midiNoteNumber, velocity);
   }
 }

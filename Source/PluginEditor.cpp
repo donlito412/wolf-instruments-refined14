@@ -33,12 +33,13 @@ HowlingWolvesAudioProcessorEditor::HowlingWolvesAudioProcessorEditor(
               true); // Pass audioProcessor
   tabs.addTab("MODULATE", WolfColors::PANEL_DARK,
               new ModulateTab(audioProcessor), true); // Pass audioProcessor
+  // tabs.addTab("DRUMS", WolfColors::PANEL_DARK, &drumTab, false); // Add Drum
+  // Tab
   tabs.addTab("PERFORM", WolfColors::PANEL_DARK, new MidiTab(audioProcessor),
               true);
   tabs.addTab("EFFECTS", WolfColors::PANEL_DARK, new EffectsTab(audioProcessor),
               true);
-  tabs.addTab("SETTINGS", WolfColors::PANEL_DARK,
-              new SettingsTab(audioProcessor), true);
+
   tabs.setCurrentTabIndex(0);
   addAndMakeVisible(tabs);
 
@@ -77,10 +78,6 @@ void HowlingWolvesAudioProcessorEditor::paint(juce::Graphics &g) {
   // Draw cave background
   g.drawImage(backgroundImage, getLocalBounds().toFloat(),
               juce::RectanglePlacement::fillDestination);
-
-  // Semi-transparent overlay for better contrast
-  g.setColour(juce::Colour(0x40000000)); // 25% black
-  g.fillAll();
 }
 
 void HowlingWolvesAudioProcessorEditor::resized() {

@@ -39,6 +39,8 @@ target_sources(HowlingWolves
         Source/PluginEditor.h
         Source/SynthEngine.cpp
         Source/SynthEngine.h
+        Source/TransientShaper.cpp
+        Source/TransientShaper.h
         Source/SampleManager.cpp
         Source/SampleManager.h
         Source/PresetManager.cpp
@@ -57,6 +59,8 @@ target_sources(HowlingWolves
         Source/MidiProcessor.h
         Source/MidiTab.cpp
         Source/MidiTab.h
+        Source/DrumTab.cpp
+        Source/DrumTab.h
         Source/SettingsTab.cpp
         Source/SettingsTab.h
         Source/VisualizerComponent.cpp
@@ -75,6 +79,8 @@ target_sources(HowlingWolves
         Source/LEDToggleButton.h
         Source/ModernCyberLookAndFeel.cpp
         Source/ModernCyberLookAndFeel.h
+        Source/HuntEngine.cpp
+        Source/HuntEngine.h
 )
 
 # Link against JUCE libraries
