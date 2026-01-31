@@ -16,11 +16,11 @@ PresetBrowser::PresetBrowser(PresetManager &pm) : presetManager(pm) {
   searchBox.setTextToShowWhenEmpty("Search presets...",
                                    juce::Colours::white.withAlpha(0.5f));
   searchBox.setColour(juce::TextEditor::backgroundColourId,
-                      juce::Colour::fromString("FF222222"));
+                      juce::Colours::transparentBlack);
   searchBox.setColour(juce::TextEditor::textColourId,
                       juce::Colours::white); // Ensure text is visible
   searchBox.setColour(juce::TextEditor::outlineColourId,
-                      juce::Colour::fromString("FF666670"));
+                      juce::Colours::transparentBlack);
   searchBox.onTextChange = [this] { filterPresets(); };
 
   // Category Filter
@@ -29,13 +29,20 @@ PresetBrowser::PresetBrowser(PresetManager &pm) : presetManager(pm) {
   categoryFilter.setSelectedId(0,
                                juce::dontSendNotification); // Default to None
   categoryFilter.setTextWhenNothingSelected("Select Category...");
+  // Match the panel style (Transparent to let panel color show through)
   categoryFilter.setColour(juce::ComboBox::backgroundColourId,
-                           juce::Colour::fromString("FF222222"));
+                           juce::Colours::transparentBlack);
   categoryFilter.setColour(juce::ComboBox::textColourId, juce::Colours::white);
   categoryFilter.setColour(juce::ComboBox::arrowColourId,
                            juce::Colour::fromString("FF88CCFF"));
   categoryFilter.setColour(juce::ComboBox::outlineColourId,
-                           juce::Colour::fromString("FF666670"));
+                           juce::Colours::transparentBlack);
+  // Match dropdown list (Popup) to the panel background
+  categoryFilter.setColour(juce::PopupMenu::backgroundColourId,
+                           WolfColors::PANEL_DARKER);
+  categoryFilter.setColour(juce::PopupMenu::textColourId, juce::Colours::white);
+  categoryFilter.setColour(juce::PopupMenu::highlightedBackgroundColourId,
+                           WolfColors::ACCENT_CYAN.withAlpha(0.2f));
   categoryFilter.onChange = [this] { filterPresets(); };
 
   // refresh(); // Deferred to first open (visibilityChanged) or explicit

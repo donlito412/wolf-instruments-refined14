@@ -65,4 +65,9 @@ public:
 
   void drawTooltip(juce::Graphics &g, const juce::String &text, int width,
                    int height) override;
+
+  // Custom ComboBox drawing to allow transparency
+  void drawComboBox(juce::Graphics &g, int width, int height, bool isButtonDown,
+                    int buttonX, int buttonY, int buttonW, int buttonH,
+                    juce::ComboBox &box) override;
 };
