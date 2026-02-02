@@ -58,8 +58,8 @@ target_sources(HowlingWolves
         Source/EffectsProcessor.h
         Source/MidiProcessor.cpp
         Source/MidiProcessor.h
-        Source/MidiTab.cpp
-        Source/MidiTab.h
+        Source/PerformTab.cpp
+        Source/PerformTab.h
         Source/MidiCapturer.cpp
         Source/MidiCapturer.h
         Source/MidiDragComponent.cpp

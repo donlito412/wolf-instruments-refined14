@@ -1,214 +1,250 @@
 #include "PlayTab.h"
 
-PlayTab::PlayTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
-  // ADSR Section
-  setupKnob(attackSlider, "Attack", attackAttachment, "attack");
-  attackSlider.setTooltip(
-      "Adjusts the time it takes for the sound to reach full volume.");
+PlayTab::PlayTab(HowlingWolvesAudioProcessor &p)
+    : audioProcessor(p), thumbnail(512, p.formatManager, p.thumbCache) {
+  // --- 1. SAMPLE / OSC A (TOP LEFT) ---
+  setupLabel(sampleTitle, "SAMPLE // OSC A");
+  setupSlider(sampleStart, "START", true, "sampleStart", startAtt);
+  setupLabel(startLabel, "START");
 
-  setupKnob(decaySlider, "Decay", decayAttachment, "decay");
-  decaySlider.setTooltip(
-      "Adjusts the time it takes to drop to the sustain level.");
+  setupSlider(sampleLength, "LENGTH", true, "sampleLength", lenAtt);
+  setupLabel(lenLabel, "LENGTH");
 
-  setupKnob(sustainSlider, "Sustain", sustainAttachment, "sustain");
-  sustainSlider.setTooltip(
-      "Sets the volume level held while the key is pressed.");
+  setupButton(revBtn, "REV");
+  setupButton(loopBtn, "LOOP");
 
-  setupKnob(releaseSlider, "Release", releaseAttachment, "release");
-  releaseSlider.setTooltip(
-      "Adjusts the time it takes for the sound to fade out after release.");
+  // --- 2. AMP ENVELOPE (TOP RIGHT) ---
+  setupLabel(envTitle, "AMP ENVELOPE");
+  setupKnob(att, "ATT", "ampAttack", attAtt);
+  setupLabel(attLabel, "ATTACK");
+  setupKnob(dec, "DEC", "ampDecay", decAtt);
+  setupLabel(decLabel, "DECAY");
+  setupKnob(sus, "SUS", "ampSustain", susAtt);
+  setupLabel(susLabel, "SUSTAIN");
+  setupKnob(rel, "REL", "ampRelease", relAtt);
+  setupLabel(relLabel, "RELEASE");
 
-  // Init ADSR Labels
-  auto initLabel = [this](juce::Label &l, const juce::String &text) {
-    addAndMakeVisible(l);
-    l.setText(text, juce::dontSendNotification);
-    l.setFont(12.0f);
-    l.setJustificationType(juce::Justification::centred);
-    l.setColour(juce::Label::textColourId, WolfColors::TEXT_SECONDARY);
-  };
+  setupSlider(velocity, "VELOCITY", true, "ampVelocity", velAtt);
+  setupLabel(velLabel, "VELOCITY SENSITIVITY");
 
-  initLabel(attackLabel, "A");
-  initLabel(decayLabel, "D");
-  initLabel(sustainLabel, "S");
-  initLabel(releaseLabel, "R");
+  setupSlider(pan, "PAN", true, "ampPan", panAtt);
+  setupLabel(panLabel, "STEREO PANNING");
 
-  addAndMakeVisible(adsrLabel);
-  adsrLabel.setText("ENVELOPE", juce::dontSendNotification);
-  adsrLabel.setFont(juce::Font(14.0f, juce::Font::bold));
-  adsrLabel.setColour(juce::Label::textColourId, WolfColors::ACCENT_CYAN);
+  // --- 3. BOTTOM ROW ---
+  setupLabel(vcfTitle, "VCF FILTER");
+  setupKnob(cutoff, "CUTOFF", "filterCutoff", cutAtt);
+  setupLabel(cutLabel, "CUTOFF");
+  setupKnob(res, "RES", "filterRes", resAtt);
+  setupLabel(resLabel, "RES");
+  setupKnob(drive, "DRIVE", "filterDrive", driveAtt);
+  setupLabel(driveLabel, "DRIVE");
 
-  // Sample Section
-  // Use setupSlider to connect params
-  setupSlider(startSlider, "Start", startAttachment, "sampleStart");
-  startSlider.setTooltip("Sets the start position of the sample playback.");
+  setupLabel(lfoTitle, "LFO MOD");
+  setupKnob(lfoRate, "RATE", "lfoRate", rateAtt);
+  setupLabel(rateLabel, "RATE");
+  setupKnob(lfoDepth, "DEPTH", "lfoDepth", depthAtt);
+  setupLabel(depthLabel, "DEPTH");
 
-  setupSlider(endSlider, "End", endAttachment, "sampleEnd");
-  endSlider.setTooltip("Sets the end position of the sample playback.");
-
-  initLabel(startLabel, "Start");
-  initLabel(endLabel, "End");
-  startLabel.setJustificationType(juce::Justification::centredRight);
-  endLabel.setJustificationType(juce::Justification::centredRight);
-
-  addAndMakeVisible(loopToggle);
-  loopToggle.setButtonText("Loop");
-  loopToggle.setTooltip("Enables or disables sample looping.");
-  if (audioProcessor.getAPVTS().getParameter("sampleLoop") != nullptr) {
-    loopAttachment =
-        std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-            audioProcessor.getAPVTS(), "sampleLoop", loopToggle);
-  }
-
-  addAndMakeVisible(sampleLabel);
-  sampleLabel.setText("SAMPLE", juce::dontSendNotification);
-  sampleLabel.setFont(juce::Font(14.0f, juce::Font::bold));
-  sampleLabel.setColour(juce::Label::textColourId, WolfColors::ACCENT_CYAN);
-
-  // --- Output Section ---
-  initLabel(gainLabel, "Gain");
-  initLabel(panLabel, "Pan");
-  initLabel(tuneLabel, "Tune");
-  // Right align labels for linear sliders
-  gainLabel.setJustificationType(juce::Justification::centredRight);
-  panLabel.setJustificationType(juce::Justification::centredRight);
-  tuneLabel.setJustificationType(juce::Justification::centredRight);
-
-  setupSlider(gainSlider, "Gain", gainAttachment, "gain");
-  gainSlider.setTooltip("Adjusts the output volume.");
-
-  setupSlider(panSlider, "Pan", panAttachment, "pan");
-  panSlider.setTooltip("Adjusts the stereo balance.");
-
-  setupSlider(tuneSlider, "Tune", tuneAttachment, "tune");
-  tuneSlider.setTooltip("Adjusts the pitch in semitones.");
-
-  addAndMakeVisible(outputLabel);
-  outputLabel.setText("OUTPUT", juce::dontSendNotification);
-  outputLabel.setFont(juce::Font(14.0f, juce::Font::bold));
-  outputLabel.setColour(juce::Label::textColourId, WolfColors::ACCENT_CYAN);
+  setupLabel(macroTitle, "MACROS");
+  setupKnob(crushMacro, "CRUSH", "macroCrush", crushAtt);
+  setupLabel(crushLabel, "CRUSH");
+  setupKnob(spaceMacro, "SPACE", "macroSpace", spaceAtt);
+  setupLabel(spaceLabel, "SPACE");
 }
 
 PlayTab::~PlayTab() {}
 
 void PlayTab::setupKnob(
-    juce::Slider &slider, const juce::String &name,
+    juce::Slider &s, const juce::String &n, const juce::String &paramId,
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-        &attachment,
-    const juce::String &paramId) {
-  slider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
-  slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-  addAndMakeVisible(slider);
-
-  if (audioProcessor.getAPVTS().getParameter(paramId) != nullptr) {
-    attachment =
+        &att) {
+  addAndMakeVisible(s);
+  s.setSliderStyle(juce::Slider::Rotary);
+  s.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+  if (auto *p = audioProcessor.getAPVTS().getParameter(paramId))
+    att =
         std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-            audioProcessor.getAPVTS(), paramId, slider);
-  }
+            audioProcessor.getAPVTS(), paramId, s);
 }
 
 void PlayTab::setupSlider(
-    juce::Slider &slider, const juce::String &name,
+    juce::Slider &s, const juce::String &n, bool h, const juce::String &paramId,
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-        &attachment,
-    const juce::String &paramId) {
-  slider.setSliderStyle(juce::Slider::LinearHorizontal);
-  slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-  addAndMakeVisible(slider);
-
-  if (audioProcessor.getAPVTS().getParameter(paramId) != nullptr) {
-    attachment =
+        &att) {
+  addAndMakeVisible(s);
+  s.setSliderStyle(h ? juce::Slider::LinearHorizontal
+                     : juce::Slider::LinearVertical);
+  s.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+  if (auto *p = audioProcessor.getAPVTS().getParameter(paramId))
+    att =
         std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-            audioProcessor.getAPVTS(), paramId, slider);
+            audioProcessor.getAPVTS(), paramId, s);
+}
+
+void PlayTab::setupButton(juce::TextButton &b, const juce::String &t) {
+  addAndMakeVisible(b);
+  b.setButtonText(t);
+  b.setClickingTogglesState(true);
+  b.setColour(juce::TextButton::buttonOnColourId, juce::Colours::cyan);
+  b.setColour(juce::TextButton::buttonColourId,
+              juce::Colours::white.withAlpha(0.1f));
+}
+
+void PlayTab::setupLabel(juce::Label &l, const juce::String &t) {
+  addAndMakeVisible(l);
+  l.setText(t, juce::dontSendNotification);
+  l.setColour(juce::Label::textColourId, juce::Colours::silver);
+
+  if (t.contains("//") || t.contains("ENVELOPE") || t.contains("FILTER") ||
+      t.contains("MOD") || t.contains("MACROS")) {
+    l.setFont(juce::Font(12.0f, juce::Font::bold));
+    l.setJustificationType(juce::Justification::left);
+  } else {
+    l.setFont(juce::Font(10.0f, juce::Font::bold));
+    l.setJustificationType(juce::Justification::centred);
   }
 }
 
 void PlayTab::paint(juce::Graphics &g) {
-  auto mainArea = getLocalBounds().removeFromRight(getWidth() - 200);
+  auto *lnf = dynamic_cast<ObsidianLookAndFeel *>(&getLookAndFeel());
+  if (lnf) {
+    lnf->drawGlassPanel(g, samplePanel);
+    lnf->drawGlassPanel(g, envelopePanel);
+    lnf->drawGlassPanel(g, filterPanel);
+    lnf->drawGlassPanel(g, modPanel);
+    lnf->drawGlassPanel(g, macroPanel);
+  }
 
-  g.setColour(WolfColors::PANEL_DARK);
-  g.fillRoundedRectangle(mainArea.toFloat().reduced(10), 4.0f);
+  // Draw Waveform in Sample Panel
+  g.setColour(juce::Colours::cyan.withAlpha(0.8f));
+  auto waveArea = samplePanel.reduced(15);
+  waveArea = waveArea.withHeight(100); // Top 100px
+  // Remove title space? No, logic inside resized handles components
+  // Actually the user logic used "reduced(15).removeFromTop(100)" in Paint
+  // *also*. I should match that.
 
-  g.setColour(WolfColors::BORDER_SUBTLE);
-  g.drawRoundedRectangle(mainArea.toFloat().reduced(10), 4.0f, 1.0f);
+  // Need to avoid drawing over title if possible, but title is Component on
+  // top. The previous Resize logic places Title in top 25. So 25 + gap for
+  // title. User paint logic: "samplePanel.reduced(15).removeFromTop(100)" That
+  // suggests the wave fills that top area.
+
+  auto wArea = samplePanel.reduced(15);
+  wArea.removeFromTop(25);                  // Skip title
+  auto finalWave = wArea.removeFromTop(85); // Approx
+
+  if (thumbnail.getNumChannels() > 0)
+    thumbnail.drawChannels(g, finalWave, 0.0, thumbnail.getTotalLength(), 1.0f);
+  else {
+    // Draw placeholder line
+    g.setColour(juce::Colours::cyan.withAlpha(0.3f));
+    g.fillRect(finalWave.reduced(0, finalWave.getHeight() / 2 - 1));
+  }
 }
 
-// Manual layout for reliability
 void PlayTab::resized() {
-  auto area = getLocalBounds();
-  area.removeFromLeft(200);
-  area.reduce(25, 25);
+  auto area = getLocalBounds().reduced(15);
+  auto topArea = area.removeFromTop((int)(getHeight() * 0.55f));
+  auto bottomArea = area.reduced(0, 10);
 
-  // 1. ADSR Section
-  {
-    auto adsrSection = area.removeFromTop(105);
-    adsrLabel.setBounds(adsrSection.removeFromTop(20));
+  // --- TOP ROW ---
+  samplePanel =
+      topArea.removeFromLeft((int)(topArea.getWidth() * 0.65f)).reduced(5);
+  envelopePanel = topArea.reduced(5);
 
-    adsrSection.removeFromTop(5); // Spacing
+  // --- BOTTOM ROW ---
+  filterPanel = bottomArea.removeFromLeft((int)(bottomArea.getWidth() * 0.33f))
+                    .reduced(5);
+  macroPanel = bottomArea.removeFromRight((int)(bottomArea.getWidth() * 0.5f))
+                   .reduced(5);
+  modPanel = bottomArea.reduced(5);
 
-    auto knobArea = adsrSection;
-    int knobW = 60;
-    int spacing = 10;
+  layoutSample();
+  layoutEnvelope();
+  layoutFilter();
+  layoutMod();
+  layoutMacros();
+}
 
-    auto layoutAdsrKnob = [&](juce::Slider &s, juce::Label &l) {
-      auto slice = knobArea.removeFromLeft(knobW);
-      knobArea.removeFromLeft(spacing);
+void PlayTab::layoutSample() {
+  auto a = samplePanel.reduced(15);
+  sampleTitle.setBounds(a.removeFromTop(25));
+  a.removeFromTop(110); // Waveform space
+  sampleStart.setBounds(a.removeFromTop(35).reduced(0, 5));
+  sampleLength.setBounds(a.removeFromTop(35).reduced(0, 5));
+  auto btnRow = a.removeFromBottom(30);
+  revBtn.setBounds(btnRow.removeFromLeft(60).reduced(2));
+  loopBtn.setBounds(btnRow.removeFromLeft(60).reduced(2));
+}
 
-      l.setBounds(slice.removeFromBottom(15));
-      s.setBounds(slice);
-    };
+void PlayTab::layoutEnvelope() {
+  auto a = envelopePanel.reduced(15);
+  envTitle.setBounds(a.removeFromTop(25));
 
-    layoutAdsrKnob(attackSlider, attackLabel);
-    layoutAdsrKnob(decaySlider, decayLabel);
-    layoutAdsrKnob(sustainSlider, sustainLabel);
-    layoutAdsrKnob(releaseSlider, releaseLabel);
-  }
+  auto knobs = a.removeFromTop(75);
+  int kw = knobs.getWidth() / 4;
 
-  area.removeFromTop(15); // Gap
+  auto placeKnob = [&](juce::Slider &s, juce::Label &l) {
+    auto zone = knobs.removeFromLeft(kw);
+    s.setBounds(zone.withSizeKeepingCentre(50, 50).translated(0, -5));
+    l.setBounds(zone.withTrimmedTop(50).withHeight(15));
+  };
 
-  // 2. Sample Section
-  {
-    auto sampleSection = area.removeFromTop(100);
-    sampleLabel.setBounds(sampleSection.removeFromTop(20));
-    sampleSection.removeFromTop(5);
+  placeKnob(att, attLabel);
+  placeKnob(dec, decLabel);
+  placeKnob(sus, susLabel);
+  placeKnob(rel, relLabel);
 
-    // Start Row
-    auto startRow = sampleSection.removeFromTop(24);
-    startLabel.setBounds(startRow.removeFromLeft(50));
-    startRow.removeFromLeft(5);
-    startSlider.setBounds(startRow);
+  auto vidArea = a.removeFromTop(45);
+  velLabel.setBounds(vidArea.removeFromTop(15));
+  velocity.setBounds(vidArea.reduced(0, 5));
 
-    sampleSection.removeFromTop(5);
+  auto panArea = a.removeFromTop(45);
+  panLabel.setBounds(panArea.removeFromTop(15));
+  pan.setBounds(panArea.reduced(0, 5));
+}
 
-    // End Row
-    auto endRow = sampleSection.removeFromTop(24);
-    endLabel.setBounds(endRow.removeFromLeft(50));
-    endRow.removeFromLeft(5);
-    endSlider.setBounds(endRow);
+void PlayTab::layoutFilter() {
+  auto a = filterPanel.reduced(15);
+  vcfTitle.setBounds(a.removeFromTop(25));
 
-    sampleSection.removeFromTop(5);
+  auto knobs = a.removeFromTop(80);
+  int kw = knobs.getWidth() / 3;
 
-    // Loop
-    loopToggle.setBounds(sampleSection.removeFromTop(20).removeFromLeft(60));
-  }
+  auto placeKnob = [&](juce::Slider &s, juce::Label &l) {
+    auto zone = knobs.removeFromLeft(kw);
+    s.setBounds(zone.withSizeKeepingCentre(50, 50).translated(0, -5));
+    l.setBounds(zone.getX(), s.getBottom(), zone.getWidth(), 15);
+  };
 
-  area.removeFromTop(15);
+  placeKnob(cutoff, cutLabel);
+  placeKnob(res, resLabel);
+  placeKnob(drive, driveLabel);
+}
 
-  // 3. Output Section
-  {
-    auto outputSection = area.removeFromTop(130);
-    outputLabel.setBounds(outputSection.removeFromTop(20));
-    outputSection.removeFromTop(5);
+void PlayTab::layoutMod() {
+  auto a = modPanel.reduced(15);
+  lfoTitle.setBounds(a.removeFromTop(25));
+  int w = a.getWidth() / 2;
 
-    auto layoutOutputRow = [&](juce::Slider &s, juce::Label &l) {
-      auto row = outputSection.removeFromTop(24);
-      l.setBounds(row.removeFromLeft(50));
-      row.removeFromLeft(5);
-      s.setBounds(row);
-      outputSection.removeFromTop(5);
-    };
+  auto left = a.removeFromLeft(w);
+  lfoRate.setBounds(left.withSizeKeepingCentre(60, 60).translated(0, -10));
+  rateLabel.setBounds(left.getX(), lfoRate.getBottom() - 5, left.getWidth(),
+                      15);
 
-    layoutOutputRow(gainSlider, gainLabel);
-    layoutOutputRow(panSlider, panLabel);
-    layoutOutputRow(tuneSlider, tuneLabel);
-  }
+  lfoDepth.setBounds(a.withSizeKeepingCentre(60, 60).translated(0, -10));
+  depthLabel.setBounds(a.getX(), lfoDepth.getBottom() - 5, a.getWidth(), 15);
+}
+
+void PlayTab::layoutMacros() {
+  auto a = macroPanel.reduced(15);
+  macroTitle.setBounds(a.removeFromTop(25));
+  int w = a.getWidth() / 2;
+
+  auto left = a.removeFromLeft(w);
+  crushMacro.setBounds(left.withSizeKeepingCentre(60, 60).translated(0, -10));
+  crushLabel.setBounds(left.getX(), crushMacro.getBottom() - 5, left.getWidth(),
+                       15);
+
+  spaceMacro.setBounds(a.withSizeKeepingCentre(60, 60).translated(0, -10));
+  spaceLabel.setBounds(a.getX(), spaceMacro.getBottom() - 5, a.getWidth(), 15);
 }

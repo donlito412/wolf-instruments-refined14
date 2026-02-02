@@ -2,11 +2,12 @@
 
 // #include "DrumTab.h" // Added - DISABLED
 #include "EffectsTab.h"
-#include "MidiTab.h"
-#include "ModernCyberLookAndFeel.h"
 #include "ModulateTab.h"
+#include "ObsidianLookAndFeel.h"
+#include "PerformTab.h"
 #include "PlayTab.h"
 #include "PluginProcessor.h"
+#include "PresetBrowser.h"
 #include "SettingsTab.h"
 #include <JuceHeader.h>
 
@@ -33,7 +34,7 @@ private:
   HowlingWolvesAudioProcessor &audioProcessor;
 
   // Modern UI components
-  ModernCyberLookAndFeel modernLookAndFeel;
+  ObsidianLookAndFeel obsidianLookAndFeel;
   juce::TabbedComponent tabs;
   juce::ComponentBoundsConstrainer constrainer;
 

@@ -1,194 +1,186 @@
 #include "ModulateTab.h"
 
 ModulateTab::ModulateTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
-  // Visualizer
-  addAndMakeVisible(visualizer);
+  // --- 1. LFO VISUALIZER (TOP) ---
+  setupLabel(visTitle, "LFO 1 VISUALIZER");
+  setupLabel(syncLabel, "SYNC: 1/4");
 
-  // Connect visualizer hook
-  audioProcessor.audioVisualizerHook =
-      [this](const juce::AudioBuffer<float> &buffer) {
-        visualizer.pushBuffer(buffer);
-      };
+  // --- 2. LFO PARAMETERS (LEFT PANEL) ---
+  setupLabel(lfoTitle, "LFO PARAMETERS");
 
-  // --- Filter Section ---
-  addAndMakeVisible(filterLabel);
-  filterLabel.setText("FILTER", juce::dontSendNotification);
-  filterLabel.setFont(juce::Font(14.0f, juce::Font::bold));
-  filterLabel.setColour(juce::Label::textColourId, WolfColors::ACCENT_CYAN);
+  addAndMakeVisible(waveSelector);
+  waveSelector.addItemList(
+      {"SINE", "SQUARE", "TRIANGLE"},
+      1); // Matching Processor choices order usually: Sine, Square, Triangle
+  // User Snippet: {"SINE", "TRIANGLE", "SAW", "SQUARE"}.
+  // Processor: Sine, Square, Triangle.
+  // I will stick to Processor choices to ensure correct mapping if I attach.
+  // Actually, I'll match the User Snippet visuals but mapping might be slightly
+  // off if not updated in Processor. I'll stick to Processor Layout: Sine,
+  // Square, Triangle.
 
-  // Only setup attachments if parameters exist
-  setupKnob(cutoffSlider, "Cutoff", cutoffAttachment, "filterCutoff", true);
-  cutoffSlider.setTooltip("Sets the filter cutoff frequency.");
-
-  setupKnob(resSlider, "Res", resAttachment, "filterRes");
-  resSlider.setTooltip("Sets the filter resonance (Q factor).");
-
-  addAndMakeVisible(filterTypeBox);
-  filterTypeBox.addItem("Low Pass", 1);
-  filterTypeBox.addItem("High Pass", 2);
-  filterTypeBox.addItem("Band Pass", 3);
-  filterTypeBox.addItem("Notch", 4);
-  filterTypeBox.setJustificationType(juce::Justification::centred);
-  filterTypeBox.setTooltip("Selects the filter type.");
-
-  if (audioProcessor.getAPVTS().getParameter("filterType") != nullptr) {
-    filterTypeAttachment = std::make_unique<
+  if (auto *a = audioProcessor.getAPVTS().getParameter("lfoWave"))
+    waveAtt = std::make_unique<
         juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.getAPVTS(), "filterType", filterTypeBox);
-  }
+        audioProcessor.getAPVTS(), "lfoWave", waveSelector);
+  else
+    waveSelector.setSelectedId(1);
 
-  // --- LFO Section ---
-  addAndMakeVisible(lfoLabel);
-  lfoLabel.setText("LFO", juce::dontSendNotification);
-  lfoLabel.setFont(juce::Font(14.0f, juce::Font::bold));
-  lfoLabel.setColour(juce::Label::textColourId, WolfColors::ACCENT_CYAN);
+  setupKnob(rateKnob, "RATE", "lfoRate", rateAtt);
+  setupKnob(depthKnob, "DEPTH", "lfoDepth", depthAtt);
 
-  setupKnob(lfoRateSlider, "Rate", lfoRateAttachment, "lfoRate");
-  lfoRateSlider.setTooltip("Sets the LFO speed in Hz.");
+  // Phase and Smooth don't exist in processor yet, just Visuals
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> nullAtt;
+  setupKnob(phaseKnob, "PHASE", "", nullAtt);
+  setupSlider(smoothSlider, "SMOOTH", true, "", nullAtt);
 
-  setupKnob(lfoDepthSlider, "Depth", lfoDepthAttachment, "lfoDepth");
-  lfoDepthSlider.setTooltip("Sets the amount of LFO modulation.");
+  // --- 3. MODULATION ROUTING (RIGHT PANEL) ---
+  setupLabel(routingTitle, "MODULATION ROUTING");
+  addAndMakeVisible(targetSelector);
+  targetSelector.addItemList({"FILTER CUTOFF", "VOLUME", "PAN", "PITCH"},
+                             1); // Matching Processor Choices
 
-  addAndMakeVisible(lfoWaveBox);
-  lfoWaveBox.addItem("Sine", 1);
-  lfoWaveBox.addItem("Square", 2);
-  lfoWaveBox.addItem("Triangle", 3);
-  lfoWaveBox.setJustificationType(juce::Justification::centred);
-  lfoWaveBox.setTooltip("Selects the LFO waveform.");
-
-  if (audioProcessor.getAPVTS().getParameter("lfoWave") != nullptr) {
-    lfoWaveAttachment = std::make_unique<
+  if (auto *a = audioProcessor.getAPVTS().getParameter("lfoTarget"))
+    targetAtt = std::make_unique<
         juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.getAPVTS(), "lfoWave", lfoWaveBox);
-  }
+        audioProcessor.getAPVTS(), "lfoTarget", targetSelector);
+  else
+    targetSelector.setSelectedId(1);
 
-  addAndMakeVisible(lfoTargetBox);
-  lfoTargetBox.addItem("Cutoff", 1);
-  lfoTargetBox.addItem("Vol", 2);
-  lfoTargetBox.addItem("Pan", 3);
-  lfoTargetBox.addItem("Pitch", 4);
-  lfoTargetBox.setJustificationType(juce::Justification::centred);
-  lfoTargetBox.setTooltip("Selects the parameter modulated by the LFO.");
-
-  if (audioProcessor.getAPVTS().getParameter("lfoTarget") != nullptr) {
-    lfoTargetAttachment = std::make_unique<
-        juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.getAPVTS(), "lfoTarget", lfoTargetBox);
+  for (auto *s : {&modA, &modD, &modS, &modR}) {
+    // Visual dummies for LFO Envelope? Or Mod Envelope?
+    setupSlider(*s, "Env", false, "", nullAtt);
   }
+  setupSlider(amountSlider, "MOD AMOUNT", true, "", nullAtt);
+
+  startTimerHz(60);
 }
 
-ModulateTab::~ModulateTab() {
-  // Clear hook to prevent crash
-  audioProcessor.audioVisualizerHook = nullptr;
+ModulateTab::~ModulateTab() { stopTimer(); }
+
+void ModulateTab::timerCallback() {
+  phaseOffset += 0.05f;
+  repaint();
 }
 
 void ModulateTab::setupKnob(
-    juce::Slider &slider, const juce::String &name,
+    juce::Slider &s, const juce::String &name, const juce::String &paramId,
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-        &attachment,
-    const juce::String &paramId, bool isBig) {
-  slider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
-  slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-  addAndMakeVisible(slider);
-
-  if (audioProcessor.getAPVTS().getParameter(paramId) != nullptr) {
-    attachment =
+        &att) {
+  addAndMakeVisible(s);
+  s.setSliderStyle(juce::Slider::Rotary);
+  s.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+  if (audioProcessor.getAPVTS().getParameter(paramId))
+    att =
         std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-            audioProcessor.getAPVTS(), paramId, slider);
+            audioProcessor.getAPVTS(), paramId, s);
+}
+
+void ModulateTab::setupSlider(
+    juce::Slider &s, const juce::String &name, bool horizontal,
+    const juce::String &paramId,
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+        &att) {
+  addAndMakeVisible(s);
+  s.setSliderStyle(horizontal ? juce::Slider::LinearHorizontal
+                              : juce::Slider::LinearVertical);
+  s.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+  if (audioProcessor.getAPVTS().getParameter(paramId))
+    att =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            audioProcessor.getAPVTS(), paramId, s);
+}
+
+void ModulateTab::setupLabel(juce::Label &l, const juce::String &t) {
+  addAndMakeVisible(l);
+  l.setText(t, juce::dontSendNotification);
+  l.setColour(juce::Label::textColourId, juce::Colours::silver);
+  l.setFont(juce::Font(12.0f, juce::Font::bold));
+}
+
+void ModulateTab::drawLFOWave(juce::Graphics &g, juce::Rectangle<int> area) {
+  g.setColour(juce::Colours::black.withAlpha(0.2f));
+  g.fillRoundedRectangle(area.toFloat(), 6.0f);
+
+  juce::Path wave;
+  float midY = (float)area.getCentreY();
+  wave.startNewSubPath((float)area.getX(), midY);
+  for (float x = 0; x < area.getWidth(); x += 2.0f) {
+    float y =
+        midY + std::sin(x * 0.04f + phaseOffset) * (area.getHeight() * 0.3f);
+    wave.lineTo((float)area.getX() + x, y);
   }
+  g.setColour(juce::Colours::cyan);
+  g.strokePath(wave, juce::PathStrokeType(2.5f));
 }
 
 void ModulateTab::paint(juce::Graphics &g) {
-  // Backgrounds for sections
-  auto area = getLocalBounds().reduced(20);
-  auto topArea = area.removeFromTop(120); // Visualizer area
+  auto *lnf = dynamic_cast<ObsidianLookAndFeel *>(&getLookAndFeel());
+  if (lnf) {
+    lnf->drawGlassPanel(g, visPanel);
+    lnf->drawGlassPanel(g, lfoPanel);
+    lnf->drawGlassPanel(g, routingPanel);
+  } else {
+    g.setColour(juce::Colours::black.withAlpha(0.5f));
+    for (auto area : {visPanel, lfoPanel, routingPanel})
+      g.fillRoundedRectangle(area.toFloat(), 10.0f);
+  }
 
-  area.removeFromTop(20); // Spacer
-
-  auto bottomArea = area;
-  auto filterArea =
-      bottomArea.removeFromLeft(bottomArea.getWidth() / 2).reduced(10);
-  auto lfoArea = bottomArea.reduced(10);
-
-  // Draw Panels
-  g.setColour(WolfColors::PANEL_DARK);
-  g.fillRoundedRectangle(filterArea.toFloat(), 6.0f);
-  g.fillRoundedRectangle(lfoArea.toFloat(), 6.0f);
-
-  g.setColour(WolfColors::BORDER_SUBTLE);
-  g.drawRoundedRectangle(filterArea.toFloat(), 6.0f, 1.0f);
-  g.drawRoundedRectangle(lfoArea.toFloat(), 6.0f, 1.0f);
+  // Draw LFO Wave Visualizer
+  drawLFOWave(g, visPanel.reduced(15));
 }
 
 void ModulateTab::resized() {
-  auto area = getLocalBounds().reduced(20);
+  auto area = getLocalBounds().reduced(15);
 
-  // Visualizer (Top)
-  visualizer.setBounds(area.removeFromTop(120));
+  // Top section for Visualizer
+  visPanel = area.removeFromTop((int)(getHeight() * 0.35f)).reduced(5);
+  visTitle.setBounds(visPanel.getX() + 10, visPanel.getY() + 5, 200, 30);
+  syncLabel.setBounds(visPanel.getRight() - 110, visPanel.getY() + 5, 100, 30);
 
-  area.removeFromTop(20); // Spacer
+  // Bottom section split for LFO and Routing
+  auto bottomArea = area.reduced(0, 10);
+  lfoPanel = bottomArea.removeFromLeft((int)(bottomArea.getWidth() * 0.48f))
+                 .reduced(5);
+  routingPanel =
+      bottomArea.removeFromRight((int)(bottomArea.getWidth() * 0.94f))
+          .reduced(5);
+  // Note: User snippet said *0.94f after removing left...
+  // If left is ~48%, remaining is 52%. 94% of 52% is ~49%. Matches nicely
+  // roughly half-half. Or did user mean "removeFromRight(remaining.width
+  // * 1.0)"? 0.94 seems specific or maybe a typo for "rest". I'll stick to
+  // snippet logic.
 
-  auto bottomArea = area;
-  auto filterArea =
-      bottomArea.removeFromLeft(bottomArea.getWidth() / 2).reduced(10);
-  auto lfoArea = bottomArea.reduced(10);
+  // --- LFO PARAMETERS LAYOUT ---
+  auto lArea = lfoPanel.reduced(15);
+  lfoTitle.setBounds(lArea.removeFromTop(30));
+  waveSelector.setBounds(lArea.removeFromTop(35).reduced(20, 0));
 
-  // Filter Layout
-  juce::FlexBox filterLayout;
-  filterLayout.flexDirection = juce::FlexBox::Direction::column;
+  // Center Knobs row
+  auto knobRow = lArea.removeFromTop(100);
+  int kw = knobRow.getWidth() / 3;
+  rateKnob.setBounds(knobRow.removeFromLeft(kw).withSizeKeepingCentre(60, 60));
+  depthKnob.setBounds(knobRow.removeFromLeft(kw).withSizeKeepingCentre(60, 60));
+  phaseKnob.setBounds(knobRow.withSizeKeepingCentre(60, 60));
 
-  filterLayout.items.add(juce::FlexItem(filterLabel).withHeight(20));
+  smoothSlider.setBounds(lArea.removeFromBottom(40).reduced(20, 0));
 
-  juce::FlexBox filterControls;
-  filterControls.justifyContent = juce::FlexBox::JustifyContent::center;
-  filterControls.alignItems = juce::FlexBox::AlignItems::center;
+  // --- ROUTING LAYOUT ---
+  auto rArea = routingPanel.reduced(15);
+  routingTitle.setBounds(rArea.removeFromTop(30));
+  targetSelector.setBounds(rArea.removeFromTop(35).reduced(20, 0));
 
-  filterControls.items.add(
-      juce::FlexItem(cutoffSlider).withWidth(80).withHeight(80)); // Big Knob
-  filterControls.items.add(
-      juce::FlexItem(resSlider).withWidth(50).withHeight(50).withMargin(
-          {0, 0, 0, 20})); // Small Knob
+  amountSlider.setBounds(rArea.removeFromBottom(40).reduced(20, 0));
 
-  filterLayout.items.add(juce::FlexItem(filterControls).withFlex(1));
-  filterLayout.items.add(juce::FlexItem(filterTypeBox)
-                             .withHeight(25)
-                             .withWidth(100)
-                             .withMargin({0, 0, 10, 0})
-                             .withAlignSelf(juce::FlexItem::AlignSelf::center));
+  auto adsrArea = rArea.reduced(30, 10);
+  float w = (float)adsrArea.getWidth() / 4.0f;
 
-  filterLayout.performLayout(filterArea);
+  auto placeSlider = [&](juce::Slider &s) {
+    s.setBounds(adsrArea.removeFromLeft((int)w).reduced(5, 0));
+  };
 
-  // LFO Layout
-  juce::FlexBox lfoLayout;
-  lfoLayout.flexDirection = juce::FlexBox::Direction::column;
-
-  lfoLayout.items.add(juce::FlexItem(lfoLabel).withHeight(20));
-
-  juce::FlexBox lfoControls;
-  lfoControls.justifyContent = juce::FlexBox::JustifyContent::center;
-  lfoControls.alignItems = juce::FlexBox::AlignItems::center;
-
-  lfoControls.items.add(
-      juce::FlexItem(lfoRateSlider).withWidth(60).withHeight(60));
-  lfoControls.items.add(juce::FlexItem(lfoDepthSlider)
-                            .withWidth(60)
-                            .withHeight(60)
-                            .withMargin({0, 10, 0, 10}));
-
-  lfoLayout.items.add(juce::FlexItem(lfoControls).withFlex(1));
-
-  juce::FlexBox lfoOptions;
-  lfoOptions.justifyContent = juce::FlexBox::JustifyContent::center;
-  lfoOptions.items.add(juce::FlexItem(lfoWaveBox)
-                           .withHeight(25)
-                           .withWidth(80)
-                           .withMargin({0, 5, 10, 0}));
-  lfoOptions.items.add(juce::FlexItem(lfoTargetBox)
-                           .withHeight(25)
-                           .withWidth(80)
-                           .withMargin({0, 0, 10, 5}));
-
-  lfoLayout.items.add(juce::FlexItem(lfoOptions).withHeight(40));
-
-  lfoLayout.performLayout(lfoArea);
+  placeSlider(modA);
+  placeSlider(modD);
+  placeSlider(modS);
+  placeSlider(modR);
 }

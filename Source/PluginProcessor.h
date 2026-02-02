@@ -58,6 +58,10 @@ public:
   HuntEngine &getHuntEngine() { return huntEngine; }
   MidiCapturer &getMidiCapturer() { return midiCapturer; }
 
+  // Shared Resources for UI
+  juce::AudioFormatManager formatManager;
+  juce::AudioThumbnailCache thumbCache{512};
+
   // Visualizer FIFO
   // Ideally, PluginProcessor polls this, but we need to push to it.
   // Actually, VisualizerComponent has the FIFO. Editor owns

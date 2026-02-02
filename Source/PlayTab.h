@@ -1,13 +1,11 @@
 #pragma once
-
-#include "ModernCyberLookAndFeel.h"
+#include "ObsidianLookAndFeel.h"
 #include "PluginProcessor.h"
-#include "PresetBrowser.h"
 #include <JuceHeader.h>
 
-//==============================================================================
 class PlayTab : public juce::Component {
 public:
+  // Updated constructor to match user request V2
   PlayTab(HowlingWolvesAudioProcessor &p);
   ~PlayTab() override;
 
@@ -17,45 +15,66 @@ public:
 private:
   HowlingWolvesAudioProcessor &audioProcessor;
 
-  // Sidebar removed (moved to PluginEditor overlay)
+  // --- Helpers ---
+  void layoutSample();
+  void layoutEnvelope();
+  void layoutFilter();
+  void layoutMod();
+  void layoutMacros();
 
-  // ADSR Section
-  juce::Slider attackSlider, decaySlider, sustainSlider, releaseSlider;
-  juce::Label attackLabel, decayLabel, sustainLabel, releaseLabel; // Added
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-      attackAttachment, decayAttachment, sustainAttachment, releaseAttachment;
-  juce::Label adsrLabel;
-
-  // Sample Control Section
-  juce::Slider startSlider, endSlider;
-  juce::Label startLabel, endLabel; // Added
-  juce::ToggleButton loopToggle;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-      startAttachment, endAttachment;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
-      loopAttachment;
-  juce::Label sampleLabel;
-
-  // Output Section
-  juce::Slider gainSlider, panSlider, tuneSlider;
-  juce::Label gainLabel, panLabel, tuneLabel; // Added
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-      gainAttachment, panAttachment, tuneAttachment;
-  juce::Label outputLabel;
-
-  // Helper to setup knobs
   void setupKnob(
-      juce::Slider &slider, const juce::String &name,
+      juce::Slider &s, const juce::String &n, const juce::String &paramId,
       std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-          &attachment,
-      const juce::String &paramId);
-
-  // Helper to setup sliders
+          &att);
   void setupSlider(
-      juce::Slider &slider, const juce::String &name,
+      juce::Slider &s, const juce::String &n, bool h,
+      const juce::String &paramId,
       std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-          &attachment,
-      const juce::String &paramId);
+          &att);
+  void setupButton(juce::TextButton &b,
+                   const juce::String &t); // No attachment in V2 snippet? I
+                                           // should check if I can add one.
+  // User snippet just used logicless button. I will add OnClick or dummy
+  // attachment logic if possible.
+  void setupLabel(juce::Label &l, const juce::String &t);
+
+  // --- Panels ---
+  juce::Rectangle<int> samplePanel, envelopePanel, filterPanel, modPanel,
+      macroPanel;
+
+  // --- Controls ---
+  // Sample
+  juce::Slider sampleStart, sampleLength;
+  juce::TextButton revBtn, loopBtn;
+
+  // Amp Envelope
+  juce::Slider att, dec, sus, rel, velocity, pan;
+
+  // Bottom Row
+  juce::Slider cutoff, res, drive;
+  juce::Slider lfoRate, lfoDepth;
+  juce::Slider crushMacro, spaceMacro;
+
+  // Labels
+  juce::Label sampleTitle, envTitle, vcfTitle, lfoTitle, macroTitle;
+
+  // Control Labels (V2 True Colors Style)
+  juce::Label attLabel, decLabel, susLabel, relLabel, velLabel, panLabel;
+  juce::Label cutLabel, resLabel, driveLabel;
+  juce::Label rateLabel, depthLabel;
+  juce::Label crushLabel, spaceLabel;
+  juce::Label startLabel, lenLabel;
+
+  // Visuals
+  juce::AudioThumbnail thumbnail;
+
+  // Attachments
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+      startAtt, lenAtt, attAtt, decAtt, susAtt, relAtt, velAtt, panAtt, cutAtt,
+      resAtt, driveAtt, rateAtt, depthAtt, crushAtt, spaceAtt;
+
+  // Missing button attachments usually mapped to parameters, or just standard
+  // buttons. User snippet uses TextButton for toggles.
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PlayTab)
 };

@@ -5,14 +5,13 @@
 HowlingWolvesAudioProcessorEditor::HowlingWolvesAudioProcessorEditor(
     HowlingWolvesAudioProcessor &p)
     : AudioProcessorEditor(&p), audioProcessor(p),
-      tabs(juce::TabbedButtonBar::TabsAtTop),
+      tabs(juce::TabbedButtonBar::Orientation::TabsAtTop),
       keyboardComponent(audioProcessor.getKeyboardState(),
                         juce::MidiKeyboardComponent::horizontalKeyboard),
       presetBrowser(audioProcessor.getPresetManager()), settingsTab(p) {
-
-  // Set LookAndFeel
-  setLookAndFeel(&modernLookAndFeel);
-  tabs.setLookAndFeel(&modernLookAndFeel);
+  // Set LookAndFeel (Obsidian)
+  setLookAndFeel(&obsidianLookAndFeel);
+  tabs.setLookAndFeel(&obsidianLookAndFeel);
 
   // Load cave background
   backgroundImage = juce::ImageCache::getFromMemory(
@@ -30,14 +29,16 @@ HowlingWolvesAudioProcessorEditor::HowlingWolvesAudioProcessorEditor(
   // Set initial size
   setSize(800, 545);
 
+#include "ModulateTab.h"
+#include "PerformTab.h"
+
+  // ... inside constructor ...
   // Create and add tabs
   tabs.addTab("PLAY", WolfColors::PANEL_DARK, new PlayTab(audioProcessor),
-              true); // Pass audioProcessor
+              true);
   tabs.addTab("MODULATE", WolfColors::PANEL_DARK,
-              new ModulateTab(audioProcessor), true); // Pass audioProcessor
-  // tabs.addTab("DRUMS", WolfColors::PANEL_DARK, &drumTab, false); // Add Drum
-  // Tab
-  tabs.addTab("PERFORM", WolfColors::PANEL_DARK, new MidiTab(audioProcessor),
+              new ModulateTab(audioProcessor), true);
+  tabs.addTab("PERFORM", WolfColors::PANEL_DARK, new PerformTab(audioProcessor),
               true);
   tabs.addTab("EFFECTS", WolfColors::PANEL_DARK, new EffectsTab(audioProcessor),
               true);

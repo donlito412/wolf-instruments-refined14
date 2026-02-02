@@ -10,6 +10,8 @@ HowlingWolvesAudioProcessor::HowlingWolvesAudioProcessor()
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameterLayout()),
       sampleManager(synthEngine), presetManager(apvts, sampleManager) {
+
+  formatManager.registerBasicFormats();
   // Load initial samples
   sampleManager.loadSamples();
 }

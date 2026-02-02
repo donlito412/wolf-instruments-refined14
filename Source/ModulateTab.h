@@ -1,51 +1,63 @@
 #pragma once
-
-#include "ModernCyberLookAndFeel.h"
+#include "ObsidianLookAndFeel.h"
 #include "PluginProcessor.h"
-#include "VisualizerComponent.h"
 #include <JuceHeader.h>
 
-//==============================================================================
-class ModulateTab : public juce::Component {
+class ModulateTab : public juce::Component, public juce::Timer {
 public:
   ModulateTab(HowlingWolvesAudioProcessor &p);
   ~ModulateTab() override;
 
+  void timerCallback() override;
   void paint(juce::Graphics &g) override;
   void resized() override;
 
 private:
   HowlingWolvesAudioProcessor &audioProcessor;
 
-  // Visualizer
-  VisualizerComponent visualizer;
-
-  // Filter Section
-  juce::GroupComponent filterGroup;
-  juce::Slider cutoffSlider, resSlider;
-  juce::ComboBox filterTypeBox;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-      cutoffAttachment, resAttachment;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
-      filterTypeAttachment;
-  juce::Label filterLabel;
-
-  // LFO Section
-  juce::GroupComponent lfoGroup;
-  juce::Slider lfoRateSlider, lfoDepthSlider;
-  juce::ComboBox lfoWaveBox, lfoTargetBox;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-      lfoRateAttachment, lfoDepthAttachment;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
-      lfoWaveAttachment, lfoTargetAttachment;
-  juce::Label lfoLabel;
-
-  // Helper to setup knobs
+  // --- Helpers ---
+  void drawLFOWave(juce::Graphics &g, juce::Rectangle<int> area);
   void setupKnob(
-      juce::Slider &slider, const juce::String &name,
+      juce::Slider &s, const juce::String &name, const juce::String &paramId,
       std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-          &attachment,
-      const juce::String &paramId, bool isBig = false);
+          &att);
+  void setupSlider(
+      juce::Slider &s, const juce::String &name, bool horizontal,
+      const juce::String &paramId,
+      std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+          &att);
+  void setupLabel(juce::Label &l, const juce::String &t);
+
+  // --- Layout Rects (Visual Panels) ---
+  // Note: User snippet used Rectangles for panel bounds in paint/resize.
+  // I will use Components as containers if I want proper mouse/child
+  // management, but the user logic explicitly paints "visPanel" etc which are
+  // likely rectangles. However, for consistency with previous tabs and cleaner
+  // Z-order, I will use Components. Wait, the User Snippet defines
+  // `juce::Rectangle<int> visPanel, lfoPanel, routingPanel;`. So I MUST follow
+  // that variable type definition to match the snippet logic exactly.
+  juce::Rectangle<int> visPanel, lfoPanel, routingPanel;
+
+  // --- Controls ---
+  // LFO
+  juce::Slider rateKnob, depthKnob, phaseKnob, smoothSlider;
+  juce::ComboBox waveSelector;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> rateAtt,
+      depthAtt; // phase/smooth missing in processor currently
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+      waveAtt;
+
+  // Routing
+  juce::Slider modA, modD, modS, modR, amountSlider;
+  juce::ComboBox targetSelector;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+      targetAtt;
+  // modADSR and amount missing in processor currently, visuals only for now?
+
+  // Labels
+  juce::Label visTitle, syncLabel, lfoTitle, routingTitle;
+
+  float phaseOffset = 0.0f;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulateTab)
 };
