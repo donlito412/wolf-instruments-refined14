@@ -3,7 +3,9 @@
 #include "PluginProcessor.h"
 #include <JuceHeader.h>
 
-class PerformTab : public juce::Component {
+class PerformTab : public juce::Component,
+                   public juce::Button::Listener,
+                   public juce::Timer {
 public:
   PerformTab(HowlingWolvesAudioProcessor &p);
   ~PerformTab() override;
@@ -11,12 +13,16 @@ public:
   void paint(juce::Graphics &g) override;
   void resized() override;
   void mouseDown(const juce::MouseEvent &e) override;
+  void mouseDrag(const juce::MouseEvent &e) override;
+  void buttonClicked(juce::Button *b) override {}
+
+  void timerCallback() override;
 
 private:
   HowlingWolvesAudioProcessor &audioProcessor;
 
   // --- Drawing Helpers ---
-  void drawArpMatrix(juce::Graphics &g, juce::Rectangle<int> area);
+  void drawPianoRoll(juce::Graphics &g, juce::Rectangle<int> area);
 
   // --- Layout Helpers ---
   void layoutVoicing();
@@ -50,7 +56,7 @@ private:
   juce::Label bpmLabel, quantizeLabel;
 
   // Grid
-  juce::Label arpTitle;
+  // (Removed Title)
 
   // Bottom Modules
   juce::Label voicingTitle, spreadTitle, controlsTitle;
@@ -59,12 +65,21 @@ private:
   juce::Slider spreadWidth, octaveRange;
   juce::TextButton chordHoldBtn, arpSyncBtn;
 
+  // Selectors
+  juce::ComboBox arpModeSelector, chordModeSelector;
+
   // --- Attachments ---
-  // (Placeholders for now as many ARP params might not exist in Processor yet)
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
       densityAtt, complexityAtt, spreadAtt, octaveAtt;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
       arpSyncAtt, chordHoldAtt;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+      arpModeAtt, chordModeAtt;
+
+  void setupComboBox(
+      juce::ComboBox &c, const juce::String &paramId,
+      std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+          &att);
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PerformTab)
 };

@@ -55,16 +55,21 @@ ModulateTab::ModulateTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
   // ADSR Knobs
   setupKnob(modA, "A", "modAttack", modAAtt);
   setupLabel(modALabel, "A");
-  modALabel.setFont(juce::Font(10.0f, juce::Font::bold));
+  modALabel.setFont(
+      juce::Font(juce::FontOptions(10.0f)).withStyle(juce::Font::bold));
   setupKnob(modD, "D", "modDecay", modDAtt);
   setupLabel(modDLabel, "D");
-  modDLabel.setFont(juce::Font(10.0f, juce::Font::bold));
+  modDLabel.setFont(
+      juce::Font(juce::FontOptions(10.0f)).withStyle(juce::Font::bold));
   setupKnob(modS, "S", "modSustain", modSAtt);
   setupLabel(modSLabel, "S");
-  modSLabel.setFont(juce::Font(10.0f, juce::Font::bold));
+  modSLabel.setFont(
+      juce::Font(juce::FontOptions(10.0f)).withStyle(juce::Font::bold));
   setupKnob(modR, "R", "modRelease", modRAtt);
   setupLabel(modRLabel, "R");
-  modRLabel.setFont(juce::Font(10.0f, juce::Font::bold));
+  modRLabel.setText("R", juce::dontSendNotification);
+  modRLabel.setFont(
+      juce::Font(juce::FontOptions(10.0f)).withStyle(juce::Font::bold));
 
   setupSlider(amountSlider, "MOD AMOUNT", true, "modAmount", amountAtt);
 
@@ -111,7 +116,7 @@ void ModulateTab::setupLabel(juce::Label &l, const juce::String &t) {
   addAndMakeVisible(l);
   l.setText(t, juce::dontSendNotification);
   l.setColour(juce::Label::textColourId, juce::Colours::silver);
-  l.setFont(juce::Font(12.0f, juce::Font::bold));
+  l.setFont(juce::Font(juce::FontOptions(12.0f)).withStyle(juce::Font::bold));
 }
 
 void ModulateTab::drawLFOWave(juce::Graphics &g, juce::Rectangle<int> area) {

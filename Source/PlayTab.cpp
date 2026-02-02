@@ -4,11 +4,14 @@ PlayTab::PlayTab(HowlingWolvesAudioProcessor &p)
     : audioProcessor(p), thumbnail(512, p.formatManager, p.thumbCache) {
   // --- 1. SAMPLE / OSC A (TOP LEFT) ---
   setupLabel(sampleTitle, "SAMPLE // OSC A");
-  setupSlider(sampleStart, "START", true, "sampleStart", startAtt);
+  setupKnob(sampleStart, "START", "sampleStart", startAtt);
   setupLabel(startLabel, "START");
 
-  setupSlider(sampleLength, "LENGTH", true, "sampleLength", lenAtt);
+  setupKnob(sampleLength, "LENGTH", "sampleLength", lenAtt);
   setupLabel(lenLabel, "LENGTH");
+
+  setupKnob(volSlider, "VOLUME", "gain", volAtt);
+  setupLabel(volLabel, "MASTER VOL");
 
   setupButton(revBtn, "REV");
   setupButton(loopBtn, "LOOP");
@@ -114,11 +117,13 @@ void PlayTab::setupLabel(juce::Label &l, const juce::String &t) {
   l.setColour(juce::Label::textColourId, juce::Colours::silver);
 
   if (t.contains("//") || t.contains("ENVELOPE") || t.contains("FILTER") ||
-      t.contains("MOD") || t.contains("MACROS")) {
-    l.setFont(juce::Font(12.0f, juce::Font::bold));
-    l.setJustificationType(juce::Justification::left);
+      t.contains("MOD") || t.contains("MACROS") || t.contains("VOL")) {
+    l.setFont(juce::Font(juce::FontOptions(12.0f)).withStyle(juce::Font::bold));
+    l.setJustificationType(juce::Justification::centred);
+    l.setText(t.toUpperCase(), juce::dontSendNotification);
   } else {
-    l.setFont(juce::Font(10.0f, juce::Font::bold));
+    // Cosmetic Label
+    l.setFont(juce::Font(juce::FontOptions(10.0f)).withStyle(juce::Font::bold));
     l.setJustificationType(juce::Justification::centred);
   }
 }
@@ -148,7 +153,7 @@ void PlayTab::paint(juce::Graphics &g) {
 
   auto wArea = samplePanel.reduced(15);
   wArea.removeFromTop(25);                  // Skip title
-  auto finalWave = wArea.removeFromTop(85); // Approx
+  auto finalWave = wArea.removeFromTop(80); // Matched logic in resized()
 
   if (thumbnail.getNumChannels() > 0)
     thumbnail.drawChannels(g, finalWave, 0.0, thumbnail.getTotalLength(), 1.0f);
@@ -186,9 +191,26 @@ void PlayTab::resized() {
 void PlayTab::layoutSample() {
   auto a = samplePanel.reduced(15);
   sampleTitle.setBounds(a.removeFromTop(25));
-  a.removeFromTop(110); // Waveform space
-  sampleStart.setBounds(a.removeFromTop(35).reduced(0, 5));
-  sampleLength.setBounds(a.removeFromTop(35).reduced(0, 5));
+
+  // Reduced waveform height
+  a.removeFromTop(80);
+
+  // Knobs Row
+  auto knobs = a.removeFromTop(80);
+  int kw = knobs.getWidth() / 3;
+
+  auto placeKnob = [&](juce::Slider &s, juce::Label &l) {
+    auto zone = knobs.removeFromLeft(kw);
+    // Draw knob slightly higher
+    s.setBounds(zone.withSizeKeepingCentre(50, 50).translated(0, -5));
+    // Label below
+    l.setBounds(zone.getX(), s.getBottom(), zone.getWidth(), 15);
+  };
+
+  placeKnob(sampleStart, startLabel);
+  placeKnob(sampleLength, lenLabel);
+  placeKnob(volSlider, volLabel);
+
   auto btnRow = a.removeFromBottom(30);
   revBtn.setBounds(btnRow.removeFromLeft(60).reduced(2));
   loopBtn.setBounds(btnRow.removeFromLeft(60).reduced(2));

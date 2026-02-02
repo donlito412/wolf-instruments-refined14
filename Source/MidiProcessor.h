@@ -18,13 +18,16 @@ public:
   // Parameters
   void setParameters(float rate, int mode, int octaves, float gate, bool on,
                      float density, float complexity, float spread);
-  void setRhythmStep(int step, bool active);
-  bool getRhythmStep(int step) const;
+  void setRhythmStep(int step, int semitoneOffset);
+  int getRhythmStep(int step) const;
+  int getCurrentStep() const { return currentStep; }
+  bool isGridEmpty() const;
 
 private:
   double currentSampleRate = 44100.0;
 
   // State
+  // ...
   int currentNote = -1;
   int currentStep = 0;
   double noteTime = 0.0;
@@ -53,9 +56,19 @@ private:
   int getNextNote();
   double getSamplesPerStep(juce::AudioPlayHead *playHead);
 
-  std::array<bool, 16> rhythmPattern = {true, true, true, true, true, true,
-                                        true, true, true, true, true, true,
-                                        true, true, true, true};
+  // Step Sequencer Data: 16 steps.
+  // Values: -1 = Rest, 0-12 = Semitone offset from root?
+  // User said "grid lights up", "switch to step sequencer".
+  // Grid is 16x8. So values should be 0-7 (representing Rows).
+  // -1 for inactive.
+  std::array<int, 16> sequence;
+
+  // We initialize with a default pattern? Or empty?
+  // Let's Init to -1 (empty)
+  // Actually user might want a default diagonal or something to see it works.
+  // No, safer to default to "Root Note" steps if we want sound immediately?
+  // Let's init to all 0 (Row 0 active) for now, or just some pattern.
+  // Constructor can init.
 };
 
 //==============================================================================
@@ -98,6 +111,8 @@ public:
   // Accessors for Modules
   Arpeggiator &getArp() { return arp; }
   ChordEngine &getChordEngine() { return chordEngine; }
+
+  int getCurrentArpStep() const { return arp.getCurrentStep(); }
 
 private:
   Arpeggiator arp;

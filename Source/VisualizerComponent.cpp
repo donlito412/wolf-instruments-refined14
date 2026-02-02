@@ -29,14 +29,24 @@ void VisualizerComponent::pushBuffer(const juce::AudioBuffer<float> &buffer) {
 void VisualizerComponent::timerCallback() {
   int numSamples = displayBuffer.getNumSamples();
   int start1, size1, start2, size2;
+  // Use fifo.getNumReady() to see if we have valid data waiting?
+  // Juce AbstractFifo doesn't have "getNumReady" for read directly without
+  // prepare.
+
   fifo.prepareToRead(numSamples, start1, size1, start2, size2);
 
-  if (size1 > 0)
-    displayBuffer.copyFrom(0, 0, fifoBuffer.data() + start1, size1);
-  if (size2 > 0)
-    displayBuffer.copyFrom(0, size1, fifoBuffer.data() + start2, size2);
+  if (size1 + size2 > 0) {
+    if (size1 > 0)
+      displayBuffer.copyFrom(0, 0, fifoBuffer.data() + start1, size1);
+    if (size2 > 0)
+      displayBuffer.copyFrom(0, size1, fifoBuffer.data() + start2, size2);
 
-  fifo.finishedRead(size1 + size2);
+    fifo.finishedRead(size1 + size2);
+    sensitivity = 1.0f; // Reset sensitivity on new data
+  } else {
+    // No new audio data, decay the display buffer to zero
+    displayBuffer.applyGain(0.85f); // Fast decay
+  }
 
   repaint();
 }

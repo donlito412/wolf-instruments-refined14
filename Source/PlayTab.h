@@ -45,7 +45,9 @@ private:
 
   // --- Controls ---
   // Sample
+  // Sample
   juce::Slider sampleStart, sampleLength;
+  juce::Slider volSlider; // Master Volume
   juce::TextButton revBtn, loopBtn;
 
   // Amp Envelope
@@ -65,6 +67,7 @@ private:
   juce::Label rateLabel, depthLabel;
   juce::Label crushLabel, spaceLabel;
   juce::Label startLabel, lenLabel;
+  juce::Label volLabel;
 
   // Visuals
   juce::AudioThumbnail thumbnail;
@@ -72,7 +75,7 @@ private:
   // Attachments
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
       startAtt, lenAtt, attAtt, decAtt, susAtt, relAtt, velAtt, panAtt, cutAtt,
-      resAtt, driveAtt, rateAtt, depthAtt, crushAtt, spaceAtt;
+      resAtt, driveAtt, rateAtt, depthAtt, crushAtt, spaceAtt, volAtt;
 
   // Missing button attachments usually mapped to parameters, or just standard
   // buttons. User snippet uses TextButton for toggles.

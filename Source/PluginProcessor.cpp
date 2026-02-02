@@ -524,38 +524,6 @@ HowlingWolvesAudioProcessor::createParameterLayout() {
   layout.add(std::make_unique<juce::AudioParameterChoice>(
       "chordMode", "Chord Mode",
       juce::StringArray{"Off", "Major", "Minor", "7th", "9th"}, 0));
-  layout.add(std::make_unique<juce::AudioParameterBool>("chordHold",
-                                                        "Chord Hold", false));
-
-  // --- MIDI Performance Parameters ---
-  layout.add(std::make_unique<juce::AudioParameterBool>("arpEnabled", "Arp On",
-                                                        false));
-  // Rates: 0=1/4, 1=1/8, 2=1/16, 3=1/32
-  layout.add(std::make_unique<juce::AudioParameterChoice>(
-      "arpRate", "Arp Rate", juce::StringArray{"1/4", "1/8", "1/16", "1/32"},
-      1)); // Default 1/8
-
-  layout.add(std::make_unique<juce::AudioParameterChoice>(
-      "arpMode", "Arp Mode",
-      juce::StringArray{"Up", "Down", "Up/Down", "Random"}, 0));
-
-  layout.add(std::make_unique<juce::AudioParameterInt>("arpOctave",
-                                                       "Arp Octaves", 1, 4, 1));
-  layout.add(std::make_unique<juce::AudioParameterFloat>("arpGate", "Arp Gate",
-                                                         0.1f, 1.0f, 0.5f));
-
-  // Added PerformTab missing params
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "arpDensity", "Arp Density", 0.0f, 1.0f, 0.5f));
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "arpComplexity", "Arp Complexity", 0.0f, 1.0f, 0.5f));
-  layout.add(std::make_unique<juce::AudioParameterFloat>(
-      "arpSpread", "Arp Spread", 0.0f, 1.0f, 0.0f));
-
-  // Chord Mode
-  layout.add(std::make_unique<juce::AudioParameterChoice>(
-      "chordMode", "Chord Mode",
-      juce::StringArray{"Off", "Major", "Minor", "7th", "9th"}, 0));
 
   layout.add(std::make_unique<juce::AudioParameterChoice>(
       "HUNT_MODE", "Hunt Mode", juce::StringArray{"Stalk", "Chase", "Kill"},

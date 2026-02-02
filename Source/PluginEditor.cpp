@@ -8,7 +8,7 @@ HowlingWolvesAudioProcessorEditor::HowlingWolvesAudioProcessorEditor(
       tabs(juce::TabbedButtonBar::Orientation::TabsAtTop),
       keyboardComponent(audioProcessor.getKeyboardState(),
                         juce::MidiKeyboardComponent::horizontalKeyboard),
-      presetBrowser(audioProcessor.getPresetManager()), settingsTab(p) {
+      settingsTab(p), presetBrowser(audioProcessor.getPresetManager()) {
   // Set LookAndFeel (Obsidian)
   setLookAndFeel(&obsidianLookAndFeel);
   tabs.setLookAndFeel(&obsidianLookAndFeel);

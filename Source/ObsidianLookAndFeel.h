@@ -142,4 +142,36 @@ public:
     g.setColour(juce::Colours::silver.withAlpha(0.1f));
     g.drawRoundedRectangle(area.toFloat(), 10.0f, 1.5f);
   }
+  // --- Tooltip Implementation ---
+  juce::Rectangle<int>
+  getTooltipBounds(const juce::String &tipText, juce::Point<int> screenPos,
+                   juce::Rectangle<int> parentArea) override {
+    juce::TextLayout layout;
+    layout.createLayoutWithBalancedLineLengths(juce::AttributedString(tipText),
+                                               200.0f);
+    auto width = (int)layout.getWidth() + 20;
+    auto height = (int)layout.getHeight() + 10;
+    return juce::Rectangle<int>(screenPos.x, screenPos.y + 24, width, height)
+        .constrainedWithin(parentArea);
+  }
+
+  void drawTooltip(juce::Graphics &g, const juce::String &text, int width,
+                   int height) override {
+    auto bounds = juce::Rectangle<float>(width, height);
+
+    // Background (Dark Glass)
+    g.setColour(juce::Colour(0xff111111));
+    g.fillRoundedRectangle(bounds, 4.0f);
+
+    // Border (Cyan Glow)
+    g.setColour(juce::Colours::cyan.withAlpha(0.6f));
+    g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
+
+    // Text
+    g.setColour(juce::Colours::white);
+    g.setFont(14.0f); // Use older Font constructor for now if Options fails
+                      // or just 14.0f if compatible
+    g.drawFittedText(text, bounds.reduced(5).toNearestInt(),
+                     juce::Justification::centred, 3);
+  }
 };
