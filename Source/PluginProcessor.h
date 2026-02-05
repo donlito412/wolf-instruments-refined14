@@ -112,6 +112,7 @@ private:
   MidiCapturer midiCapturer;
 
   std::atomic<bool> transportPlaying{false};
+  std::atomic<float> internalBPM{120.0f};
 
   //==============================================================================
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HowlingWolvesAudioProcessor)

@@ -2,10 +2,10 @@
 
 # Configuration
 PLUGIN_NAME="Howling Wolves"
-PLUGIN_VERSION="1.0.13"
+PLUGIN_VERSION="1.0.14"
 IDENTIFIER="com.donlito412.howlingwolves"
-BUILD_ROOT="build_v13/HowlingWolves_artefacts"
-STAGING_DIR="Installer/staging_v13"
+BUILD_ROOT="build_v14/HowlingWolves_artefacts"
+STAGING_DIR="Installer/staging_v14"
 OUTPUT_DIR="Installer/output"
 
 # Clean

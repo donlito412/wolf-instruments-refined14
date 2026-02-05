@@ -1,11 +1,12 @@
 #pragma once
 #include "ObsidianLookAndFeel.h"
+#include "PianoRollComponent.h"
 #include "PluginProcessor.h"
 #include <JuceHeader.h>
 
 class PerformTab : public juce::Component,
                    public juce::Button::Listener,
-                   public juce::Timer {
+                   public juce::AudioProcessorValueTreeState::Listener {
 public:
   PerformTab(HowlingWolvesAudioProcessor &p);
   ~PerformTab() override;
@@ -16,13 +17,14 @@ public:
   void mouseDrag(const juce::MouseEvent &e) override;
   void buttonClicked(juce::Button *b) override {}
 
-  void timerCallback() override;
+  void parameterChanged(const juce::String &parameterID,
+                        float newValue) override;
 
 private:
   HowlingWolvesAudioProcessor &audioProcessor;
 
   // --- Drawing Helpers ---
-  void drawPianoRoll(juce::Graphics &g, juce::Rectangle<int> area);
+  // (Piano roll now handled by PianoRollComponent)
 
   // --- Layout Helpers ---
   void layoutVoicing();
@@ -39,24 +41,18 @@ private:
       std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
           &att);
   void setupButton(juce::TextButton &b, const juce::String &t, juce::Colour c);
-  void setupButton(
-      juce::TextButton &b, const juce::String &t, const juce::String &paramId,
-      std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
-          &att,
-      juce::Colour c);
   void setupLabel(juce::Label &l, const juce::String &t);
 
   // --- Panels ---
   juce::Rectangle<int> transportPanel, gridPanel, voicingPanel, spreadPanel,
       controlsPanel;
 
-  // --- Controls ---
   // Transport
   juce::TextButton playBtn, stopBtn, recBtn;
-  juce::Label bpmLabel, quantizeLabel;
 
   // Grid
   // (Removed Title)
+  PianoRollComponent pianoRoll;
 
   // UI State for Transient Menus
   bool showChordMenu = false;
@@ -75,8 +71,7 @@ private:
   // --- Attachments ---
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
       densityAtt, complexityAtt, spreadAtt, octaveAtt;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
-      arpSyncAtt, chordHoldAtt;
+  // Button attachments removed - using manual parameter listeners instead
   std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
       arpModeAtt, chordModeAtt;
 

@@ -1,9 +1,11 @@
 #include "PerformTab.h"
+#include "PianoRollComponent.h"
 
-PerformTab::PerformTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
-  // --- 1. TRANSPORT BAR (TOP) ---
-  setupLabel(bpmLabel, "BPM 128.0");
-  setupLabel(quantizeLabel, "QUANTIZE 1/16 NOTE");
+PerformTab::PerformTab(HowlingWolvesAudioProcessor &p)
+    : audioProcessor(p), pianoRoll(p) {
+  addAndMakeVisible(pianoRoll);
+
+  // (Quantize label removed - non-functional)
 
   // Using Unicode shapes for Transport Icons
   setupButton(playBtn, juce::CharPointer_UTF8("\xe2\x96\xb6"),
@@ -44,14 +46,12 @@ PerformTab::PerformTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
 
   // --- 5. ARP CONTROLS (BOTTOM RIGHT) ---
   setupLabel(controlsTitle, "ARP CONTROLS");
-  setupButton(chordHoldBtn, "CHORDS", "chordHold", chordHoldAtt,
-              juce::Colours::cyan);
-  chordHoldBtn.setTooltip("Master Switch: Enable/Disable Chord Generation");
-  chordHoldBtn.setTooltip("Holds the active chord after keys are released");
+  // Buttons setup without parameter attachments
+  setupButton(chordHoldBtn, "CHORDS", juce::Colours::grey);
+  chordHoldBtn.setTooltip("Click to select chord mode");
 
-  setupButton(arpSyncBtn, "ARP SYNC", "arpEnabled", arpSyncAtt,
-              juce::Colours::cyan);
-  arpSyncBtn.setTooltip("Enables Arpeggiator Mode (Syncs to BPM)");
+  setupButton(arpSyncBtn, "ARP SYNC", juce::Colours::grey);
+  arpSyncBtn.setTooltip("Click to enable arpeggiator");
 
   // Selector Setup
   setupComboBox(arpModeSelector, "arpMode", arpModeAtt);
@@ -68,9 +68,20 @@ PerformTab::PerformTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
   };
 
   // Chord Button Logic (Popup Menu)
+  // Fix: Button should NOT act as a toggle switch itself.
+  // It opens menu. Menu selection updates the PARAMETER.
+  // The Parameter Listener updates the Button's visual State.
+  // Wait, these buttons are attached to params via `arpSyncAtt` etc.
+  // If attached, the attachment handles the toggle state automatically based on
+  // param! BUT: clicking toggles it *locally* too. Solution: Use
+  // setClickingTogglesState(false) so clicking ONLY fires onClick.
+  chordHoldBtn.setClickingTogglesState(false);
   chordHoldBtn.onClick = [this] {
+    // Logic: If currently ON (Held), clicking allows us to turn OFF or Change
+    // Mode? User wants 1-click access to menu.
+
     juce::PopupMenu m;
-    m.addItem(1, "OFF", true, false); // ID 1
+    m.addItem(1, "OFF", true, false);
     m.addItem(2, "Major", true, false);
     m.addItem(3, "Minor", true, false);
     m.addItem(4, "7th", true, false);
@@ -82,28 +93,22 @@ PerformTab::PerformTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
           if (length == 0)
             return; // Cancelled
 
-          // Handle Selection
           auto *modeParam = dynamic_cast<juce::AudioParameterChoice *>(
               audioProcessor.getAPVTS().getParameter("chordMode"));
           auto *holdParam = audioProcessor.getAPVTS().getParameter("chordHold");
 
+          // Logic:
+          // If "OFF" (1) -> Set Mode to 0, Hold to 0.
+          // If Others -> Set Mode to Index, Hold to 1.
+
           if (length == 1) { // OFF
             if (holdParam)
-              holdParam->setValueNotifyingHost(0.0f); // OFF
-            if (modeParam)
-              *modeParam = 0; // Index 0 (OFF in param usually?) Wait, Param has
-                              // "OFF" as item 1?
-            // Let's check Param config. Usually 0=OFF.
-            // If param choices are ["OFF", "Major", ...], then Index 0 is OFF.
+              holdParam->setValueNotifyingHost(0.0f);
             if (modeParam)
               *modeParam = 0;
           } else {
-            // Enable Chords
             if (holdParam)
               holdParam->setValueNotifyingHost(1.0f);
-            // Map ID 2 (Major) -> Index 1?
-            // If Choices: 0:OFF, 1:Major, 2:Minor...
-            // ID 2 -> Index 1.
             if (modeParam)
               *modeParam = length - 1;
           }
@@ -111,6 +116,7 @@ PerformTab::PerformTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
   };
 
   // Arp Button Logic (Popup Menu)
+  arpSyncBtn.setClickingTogglesState(false);
   arpSyncBtn.onClick = [this] {
     juce::PopupMenu m;
     m.addItem(1, "OFF", true, false);
@@ -155,7 +161,6 @@ PerformTab::PerformTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
   playBtn.onClick = [this] {
     bool isPlaying = playBtn.getToggleState();
     audioProcessor.setTransportPlaying(isPlaying);
-    // Ensure Stop is untoggled if Play is toggled
     if (isPlaying) {
       stopBtn.setToggleState(false, juce::dontSendNotification);
     }
@@ -165,151 +170,86 @@ PerformTab::PerformTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
   stopBtn.onClick = [this] {
     bool isStopped = stopBtn.getToggleState();
     if (isStopped) {
-      // Stop means "Not Playing"
       playBtn.setToggleState(false, juce::dontSendNotification);
       audioProcessor.setTransportPlaying(false);
-
-      // Optional: Reset Transport/Arp position?
-      // audioProcessor.getMidiProcessor().reset();
-      // Resetting might be desired behavior for "Stop".
       audioProcessor.getMidiProcessor().reset();
-
-      // Untoggle itself after a moment? Or acting as a "Toggle State"?
-      // User said "play stop ... button". Usually Play is toggle, Stop is
-      // trigger or toggle. If Stop is a toggle... let's leave it. But usually
-      // Stop just resets. Let's make Stop a momentary trigger
-      // implementation-wise for UI but logical reset. We'll leave the toggle
-      // state as user might expect visual feedback.
     }
   };
 
-  startTimerHz(30); // 30 FPS Refresh
-}
+  // Record Button Logic - MIDI Capture
+  recBtn.onClick = [this] {
+    bool isRecording = recBtn.getToggleState();
 
-void PerformTab::drawPianoRoll(juce::Graphics &g, juce::Rectangle<int> area) {
-  // Professional Piano Roll Look
-  // Background
-  g.setColour(
-      juce::Colour::fromFloatRGBA(0.08f, 0.08f, 0.08f, 1.0f)); // Very dark grey
-  g.fillRect(area);
+    if (isRecording) {
+      // Start MIDI recording
+      audioProcessor.getMidiCapturer().startRecording();
+    } else {
+      // Stop and save recording
+      audioProcessor.getMidiCapturer().stopRecording();
+      juce::File midiFile = audioProcessor.getMidiCapturer().saveToTempFile();
 
-  int numSteps = 16;
-  int numNotes = 8;
-
-  // Piano Keys (Left Axis)
-  int keysWidth = 30;
-  auto keysArea = area.removeFromLeft(keysWidth);
-
-  float noteH = (float)area.getHeight() / (float)numNotes;
-  float stepW = (float)area.getWidth() / (float)numSteps;
-
-  // Draw Keys
-  juce::StringArray notes = {"C3", "B2", "A2", "G2",
-                             "F2", "E2", "D2", "C2"}; // Scale mapping visual
-
-  for (int y = 0; y < numNotes; ++y) {
-    auto k = juce::Rectangle<float>((float)keysArea.getX(),
-                                    (float)keysArea.getY() + (y * noteH),
-                                    (float)keysWidth, noteH);
-    bool isBlackKey =
-        (notes[y].contains("#") ||
-         notes[y].contains(
-             "Bb")); // We only have diatonic/minor scale mapped for now
-    // Actually our mapping is weird: Root, +2, +3...
-    // Let's just draw "Tech Keys"
-
-    g.setColour(juce::Colours::black);
-    g.drawRect(k, 1.0f);
-
-    g.setColour(juce::Colours::darkgrey.darker());
-    g.fillRect(k.reduced(1));
-
-    g.setColour(juce::Colours::white.withAlpha(0.6f));
-    g.setFont(10.0f);
-    // Just draw Note Index + 1 for now or scale degree?
-    // User asked for "Professional Piano Roll".
-    // Let's draw scale degrees: I, VII, VI...
-    // Or just default chromatic text if mapped that way?
-    // Current mapping is: 0, 2, 3, 5, 7, 9, 10, 12
-    // Let's draw numeric offset?
-    juce::String label = notes[y];
-    // Since logic uses 8 rows, let's keep the labels we had but improve look.
-    g.drawText(label, k, juce::Justification::centred);
-  }
-
-  // Grid Lines
-  g.setColour(juce::Colours::white.withAlpha(0.05f));
-  for (int x = 0; x <= numSteps; ++x) {
-    float xPos = area.getX() + (x * stepW);
-    g.drawVerticalLine((int)xPos, (float)area.getY(), (float)area.getBottom());
-    if (x % 4 == 0) {
-      g.setColour(juce::Colours::white.withAlpha(0.1f));
-      g.drawVerticalLine((int)xPos, (float)area.getY(),
-                         (float)area.getBottom());
-      g.setColour(juce::Colours::white.withAlpha(0.05f));
-    }
-  }
-  for (int y = 0; y <= numNotes; ++y) {
-    float yPos = area.getY() + (y * noteH);
-    g.drawHorizontalLine((int)yPos, (float)area.getX(), (float)area.getRight());
-  }
-
-  // Draw Notes
-  auto &arp = audioProcessor.getMidiProcessor().getArp();
-  int playStep = arp.getCurrentStep();
-
-  for (int x = 0; x < numSteps; ++x) {
-    int val = arp.getRhythmStep(x);
-
-    // Highlight Playhead Column
-    if (x == playStep) {
-      auto col = juce::Rectangle<float>((float)area.getX() + (x * stepW),
-                                        (float)area.getY(), stepW,
-                                        (float)area.getHeight());
-      g.setColour(juce::Colours::white.withAlpha(0.05f));
-      g.fillRect(col);
-    }
-
-    if (val != -1 && val < numNotes) {
-      // Invert Y because 0 is Top visually usually, but musically 0 is low?
-      // Array access: 0 is index 0.
-      // In draw loop: y=0 is top.
-      // Usually Piano Roll: High notes top.
-      // Let's assume Row 0 = High Note?
-      // notes array: C3 (Top), B2... C2 (Bottom).
-      // This matches visual y=0 top.
-
-      auto noteRect = juce::Rectangle<float>((float)area.getX() + (x * stepW),
-                                             (float)area.getY() + (val * noteH),
-                                             stepW, noteH)
-                          .reduced(1.0f);
-
-      g.setColour(juce::Colours::cyan);
-      g.fillRect(noteRect);
-
-      g.setColour(juce::Colours::cyan.brighter());
-      g.drawRect(noteRect, 1.0f);
-
-      if (x == playStep) {
-        g.setColour(juce::Colours::white);
-        g.drawRect(noteRect, 2.0f);
+      if (midiFile.existsAsFile()) {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::AlertWindow::InfoIcon, "MIDI Recorded",
+            "MIDI saved to: " + midiFile.getFullPathName());
       }
     }
+  };
+
+  // Add parameter listeners
+  audioProcessor.getAPVTS().addParameterListener("chordHold", this);
+  audioProcessor.getAPVTS().addParameterListener("arpEnabled", this);
+
+  // Initialize button colors based on current parameter values
+  auto *chordParam = audioProcessor.getAPVTS().getParameter("chordHold");
+  if (chordParam) {
+    bool isActive = chordParam->getValue() > 0.5f;
+    chordHoldBtn.setColour(juce::TextButton::buttonColourId,
+                           isActive ? juce::Colours::cyan
+                                    : juce::Colours::grey);
+  }
+
+  auto *arpParam = audioProcessor.getAPVTS().getParameter("arpEnabled");
+  if (arpParam) {
+    bool isActive = arpParam->getValue() > 0.5f;
+    arpSyncBtn.setColour(juce::TextButton::buttonColourId,
+                         isActive ? juce::Colours::cyan : juce::Colours::grey);
   }
 }
+
+// drawPianoRoll removed - now handled by PianoRollComponent
 
 // (Removed duplicate resized)
 
-PerformTab::~PerformTab() { stopTimer(); }
+PerformTab::~PerformTab() {
+  // CRITICAL: Clear all onClick callbacks that capture [this]
+  // These can fire during/after destruction causing crashes
+  playBtn.onClick = nullptr;
+  stopBtn.onClick = nullptr;
+  recBtn.onClick = nullptr;
+  chordHoldBtn.onClick = nullptr;
+  arpSyncBtn.onClick = nullptr;
 
-void PerformTab::timerCallback() {
-  static int lastStep = -1;
-  int step = audioProcessor.getMidiProcessor().getArp().getCurrentStep();
+  // Remove parameter listeners BEFORE components destruct
+  audioProcessor.getAPVTS().removeParameterListener("arpEnabled", this);
+  audioProcessor.getAPVTS().removeParameterListener("chordHold", this);
+}
 
-  // Only repaint if step changed
-  if (step != lastStep) {
-    lastStep = step;
-    repaint(gridPanel); // Only repaint grid area
+void PerformTab::parameterChanged(const juce::String &parameterID,
+                                  float newValue) {
+  // SAFETY CHECK - prevent crashes during destruction
+  if (!isShowing())
+    return; // Don't update if not visible/being destroyed
+
+  if (parameterID == "chordHold") {
+    bool isActive = newValue > 0.5f;
+    chordHoldBtn.setColour(juce::TextButton::buttonColourId,
+                           isActive ? juce::Colours::cyan
+                                    : juce::Colours::grey);
+  } else if (parameterID == "arpEnabled") {
+    bool isActive = newValue > 0.5f;
+    arpSyncBtn.setColour(juce::TextButton::buttonColourId,
+                         isActive ? juce::Colours::cyan : juce::Colours::grey);
   }
 }
 
@@ -370,27 +310,16 @@ void PerformTab::setupComboBox(
         audioProcessor.getAPVTS(), paramId, c);
 }
 
-// Original (Cosmetic/Transport)
+// Removed old setupButton - now using single implementation without attachments
+
+// Button setup without parameter attachment - manual color management
 void PerformTab::setupButton(juce::TextButton &b, const juce::String &t,
                              juce::Colour c) {
   addAndMakeVisible(b);
   b.setButtonText(t);
   b.setColour(juce::TextButton::buttonOnColourId, c);
-  b.setColour(juce::TextButton::buttonColourId,
-              c.withAlpha(0.2f)); // Default state dim
-  b.setClickingTogglesState(true);
-}
-
-// Overload (Parameter)
-void PerformTab::setupButton(
-    juce::TextButton &b, const juce::String &t, const juce::String &paramId,
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> &att,
-    juce::Colour c) {
-  setupButton(b, t, c); // Re-use cosmetic setup
-  if (auto *p = audioProcessor.getAPVTS().getParameter(paramId))
-    att =
-        std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-            audioProcessor.getAPVTS(), paramId, b);
+  b.setColour(juce::TextButton::buttonColourId, c);
+  b.setClickingTogglesState(false); // Prevent toggle behavior
 }
 
 void PerformTab::setupLabel(juce::Label &l, const juce::String &t) {
@@ -411,10 +340,7 @@ void PerformTab::paint(juce::Graphics &g) {
     lnf->drawGlassPanel(g, spreadPanel);
     lnf->drawGlassPanel(g, controlsPanel);
   }
-
-  // Draw Piano Roll (includes keys)
-  auto matrixArea = gridPanel.reduced(2);
-  drawPianoRoll(g, matrixArea);
+  // Piano roll drawing removed - now handled by PianoRollComponent
 }
 
 void PerformTab::mouseDown(const juce::MouseEvent &e) {
@@ -492,13 +418,12 @@ void PerformTab::resized() {
   stopBtn.setBounds(tArea.removeFromLeft(btnW).reduced(2));
   recBtn.setBounds(tArea.removeFromLeft(btnW).reduced(2));
 
-  quantizeLabel.setBounds(tArea.removeFromRight(150));
-  bpmLabel.setBounds(tArea.removeFromRight(100));
-
-  // Grid Section
-  area.removeFromTop(10); // Spacing
-  // Reduced grid height to give more room to bottom modules
+  // Grid Section with Piano Roll
+  area.removeFromTop(10);
   gridPanel = area.removeFromTop((int)(area.getHeight() * 0.55f)).reduced(5);
+
+  // Layout piano roll component inside grid panel
+  pianoRoll.setBounds(gridPanel);
 
   // Bottom Modules
   auto bottomArea = area.reduced(0, 10);

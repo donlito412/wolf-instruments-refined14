@@ -136,6 +136,14 @@ HowlingWolvesAudioProcessorEditor::HowlingWolvesAudioProcessorEditor(
 }
 
 HowlingWolvesAudioProcessorEditor::~HowlingWolvesAudioProcessorEditor() {
+  // CRITICAL: Clear all onClick callbacks that capture [this]
+  // These can fire during/after destruction causing crashes
+  browseButton.onClick = nullptr;
+  saveButton.onClick = nullptr;
+  settingsButton.onClick = nullptr;
+  tipsButton.onClick = nullptr;
+
+  // Clean up look and feel
   stopTimer();
   setLookAndFeel(nullptr);
   tabs.setLookAndFeel(nullptr);

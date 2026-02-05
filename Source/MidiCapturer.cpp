@@ -53,6 +53,16 @@ void MidiCapturer::processMidi(const juce::MidiBuffer &buffer, int numSamples) {
   currentSampleTime += numSamples;
 }
 
+void MidiCapturer::startRecording() { setRecording(true); }
+
+void MidiCapturer::stopRecording() { setRecording(false); }
+
+bool MidiCapturer::isRecording() const { return recording; }
+
+bool MidiCapturer::hasRecording() const { return sequence.getNumEvents() > 0; }
+
+juce::File MidiCapturer::getLastRecording() const { return lastFile; }
+
 juce::File MidiCapturer::saveToTempFile() {
   auto tempFile = juce::File::getSpecialLocation(juce::File::tempDirectory)
                       .getChildFile("drag_export.mid");
@@ -97,5 +107,6 @@ juce::File MidiCapturer::saveToTempFile() {
     midiFile.writeTo(stream);
   }
 
+  lastFile = tempFile;
   return tempFile;
 }

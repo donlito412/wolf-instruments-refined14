@@ -172,7 +172,43 @@ void HowlingWolvesAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
                                       true);
 
   // 2. Perform Midi Transformation (Arp / Chords)
-  midiProcessor.process(midiMessages, buffer.getNumSamples(), getPlayHead());
+  // 2. Perform Midi Transformation (Arp / Chords)
+  float currentBPM = 120.0f;
+  if (auto *ph = getPlayHead()) {
+    if (auto pos = ph->getPosition()) {
+      if (pos->getBpm().hasValue()) {
+        currentBPM = (float)*pos->getBpm();
+      }
+    }
+  }
+
+  // If DAW BPM is invalid/missing (Standalone), use Internal.
+  float manualBPM = 120.0f;
+  if (auto *bpmParam = apvts.getRawParameterValue("standaloneBPM")) {
+    manualBPM = bpmParam->load();
+  }
+
+  if (currentBPM <= 0.0f || currentBPM == 120.0f) { // If default or invalid
+    // Wait, 120 is default. But if DAW says 120, we shouldn't override?
+    // Check playHead again. If ph is null, we are in Standalone.
+    if (!getPlayHead() || !getPlayHead()->getPosition()) {
+      currentBPM = manualBPM;
+      internalBPM.store(currentBPM);
+    }
+    // If PlayHead exists but gives 120 (default?), maybe it's unconfigured
+    // host. Better heuristic:
+    if (currentBPM <= 0.1f)
+      currentBPM = manualBPM;
+  }
+
+  // Safest: Update internalBPM atom if we are using it.
+  if (currentBPM == manualBPM)
+    internalBPM.store(manualBPM);
+
+  // Pass currentBPM as fallback to MidiProcessor (it will use PlayHead if
+  // available, but this arg is for safety)
+  midiProcessor.process(midiMessages, buffer.getNumSamples(), getPlayHead(),
+                        currentBPM);
 
   // Read parameters from APVTS and apply to synth engine (Josh Hodge pattern)
   auto *attackParam = apvts.getRawParameterValue("attack");

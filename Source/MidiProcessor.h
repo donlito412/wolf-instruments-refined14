@@ -12,7 +12,7 @@ public:
 
   void prepare(double sampleRate);
   void process(juce::MidiBuffer &midiMessages, int numSamples,
-               juce::AudioPlayHead *playHead);
+               juce::AudioPlayHead *playHead, float fallbackBPM = 120.0f);
   void reset();
 
   // Parameters
@@ -54,7 +54,7 @@ private:
   void handleNoteOn(int note, int velocity);
   void handleNoteOff(int note);
   int getNextNote();
-  double getSamplesPerStep(juce::AudioPlayHead *playHead);
+  double getSamplesPerStep(juce::AudioPlayHead *playHead, float fallbackBPM);
 
   // Step Sequencer Data: 16 steps.
   // Values: -1 = Rest, 0-12 = Semitone offset from root?
@@ -105,7 +105,7 @@ public:
 
   void prepare(double sampleRate);
   void process(juce::MidiBuffer &midiMessages, int numSamples,
-               juce::AudioPlayHead *playHead);
+               juce::AudioPlayHead *playHead, float fallbackBPM = 120.0f);
   void reset();
 
   // Accessors for Modules

@@ -171,8 +171,9 @@ int Arpeggiator::getNextNote() {
   return sortedNotes[noteIdx];
 }
 
-double Arpeggiator::getSamplesPerStep(juce::AudioPlayHead *playHead) {
-  double bpm = 120.0;
+double Arpeggiator::getSamplesPerStep(juce::AudioPlayHead *playHead,
+                                      float fallbackBPM) {
+  double bpm = fallbackBPM; // Default to fallback
   if (playHead) {
     if (auto pos = playHead->getPosition()) {
       if (pos->getBpm().hasValue())
@@ -182,7 +183,7 @@ double Arpeggiator::getSamplesPerStep(juce::AudioPlayHead *playHead) {
 
   // Safety Clamp
   if (bpm < 20.0)
-    bpm = 120.0;
+    bpm = fallbackBPM; // Keep using fallback if weird value
 
   // RateDiv: Passed as Index cast to float (0.0, 1.0, 2.0, 3.0)
   // or Normalized? Current usage in PluginProcessor is `(float)rateIdx`.
@@ -215,7 +216,7 @@ double Arpeggiator::getSamplesPerStep(juce::AudioPlayHead *playHead) {
 }
 
 void Arpeggiator::process(juce::MidiBuffer &midiMessages, int numSamples,
-                          juce::AudioPlayHead *playHead) {
+                          juce::AudioPlayHead *playHead, float fallbackBPM) {
 
   // --- 1. Update State from Input ---
   for (const auto metadata : midiMessages) {
@@ -299,7 +300,7 @@ void Arpeggiator::process(juce::MidiBuffer &midiMessages, int numSamples,
   }
 
   // Arp Timing Logic
-  double samplesPerStep = getSamplesPerStep(playHead);
+  double samplesPerStep = getSamplesPerStep(playHead, fallbackBPM);
   if (samplesPerStep < 100.0)
     samplesPerStep = 100.0;
 
@@ -465,10 +466,10 @@ void MidiProcessor::prepare(double sampleRate) {
 void MidiProcessor::reset() { arp.reset(); }
 
 void MidiProcessor::process(juce::MidiBuffer &midiMessages, int numSamples,
-                            juce::AudioPlayHead *playHead) {
+                            juce::AudioPlayHead *playHead, float fallbackBPM) {
   // 1. Chords First
   chordEngine.process(midiMessages);
 
   // 2. Arp Second
-  arp.process(midiMessages, numSamples, playHead);
+  arp.process(midiMessages, numSamples, playHead, fallbackBPM);
 }

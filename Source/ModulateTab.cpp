@@ -76,7 +76,24 @@ ModulateTab::ModulateTab(HowlingWolvesAudioProcessor &p) : audioProcessor(p) {
   startTimerHz(60);
 }
 
-ModulateTab::~ModulateTab() { stopTimer(); }
+ModulateTab::~ModulateTab() {
+  // CRITICAL FIX: Reset ALL attachments BEFORE sliders are destroyed
+  // Otherwise attachment destructorss try to removeListener from destroyed
+  // sliders
+  rateAtt.reset();
+  depthAtt.reset();
+  phaseAtt.reset();
+  smoothAtt.reset();
+  modAAtt.reset();
+  modDAtt.reset();
+  modSAtt.reset();
+  modRAtt.reset();
+  amountAtt.reset();
+  waveAtt.reset();
+  targetAtt.reset();
+
+  stopTimer();
+}
 
 void ModulateTab::timerCallback() {
   // Only animate if notes are playing, per user request
